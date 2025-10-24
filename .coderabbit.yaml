@@ -9,5 +9,6 @@ reviews:
   auto_review:
     enabled: true
     drafts: false
+    base_branches: ["develop", "feature/.*"]
 chat:
   auto_reply: true
