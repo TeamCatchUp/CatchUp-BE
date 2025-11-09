@@ -39,3 +39,5 @@ out/
 ### Configuration ###
 application.yml
 application.properties
+*.override.yml
+.env
