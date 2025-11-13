@@ -1,6 +1,5 @@
 package com.team.catchup.meilisearch.controller;
 
-import com.team.catchup.meilisearch.document.JiraIssueDocument;
 import com.team.catchup.meilisearch.document.MeiliSearchDocument;
 import com.team.catchup.meilisearch.dto.MeiliSearchDocumentRequest;
 import com.team.catchup.meilisearch.dto.MeiliSearchQueryResponse;
@@ -10,8 +9,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @RestController
 @RequiredArgsConstructor
@@ -37,7 +36,7 @@ public class MeiliSearchController {
     @GetMapping("/api/search")
     public ResponseEntity<MeiliSearchQueryResponse> search (
             @RequestParam String query,
-            @RequestParam(required = false) List<String> indices
+            @RequestParam List<String> indices
 
     ) {
         MeiliSearchQueryResponse response = meiliSearchService.search(query, indices);

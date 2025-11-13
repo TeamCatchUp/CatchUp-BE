@@ -9,8 +9,12 @@ import com.team.catchup.meilisearch.document.MeiliSearchDocument;
 import com.team.catchup.meilisearch.dto.MeiliSearchQueryResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * MeiliSearchService
@@ -26,24 +30,23 @@ public class MeiliSearchService {
      * Document 생성 또는 갱신
      * MeiliSearch는 새로운 Document는 생성하고 이미 존재하는 Document는 덮어쓴다.
      *
-     * @param documents MeiliSearchDocument 구현체의 리스트, 동일한 구현체로 이루어져있어야 한다
+     * @param documents MeiliSearchDocument 구현체의 리스트
      */
     public void addOrUpdateDocument(List<MeiliSearchDocument> documents) {
         if (documents == null || documents.isEmpty()) return;
 
-        String indexName = documents.stream()
-                .map(MeiliSearchDocument::getIndexName)
-                .distinct()
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("indexName을 결정할 수 없습니다."));
+        Map<String, List<MeiliSearchDocument>> groupedByIndex = documents.stream()
+                .collect(Collectors.groupingBy(MeiliSearchDocument::getIndexName));
 
-        try {
-            String documentsJson = jsonHandler.encode(documents);
-            Index index = meiliSearchClient.index(indexName);
-            index.addDocuments(documentsJson);
-        } catch (MeilisearchException e){
-            throw new RuntimeException("Document 생성(갱신)에 실패했습니다.", e);
-        }
+        groupedByIndex.forEach((indexName, docs) ->{
+            try {
+                String documentsJson = jsonHandler.encode(docs);
+                Index index = meiliSearchClient.index(indexName);
+                index.addDocuments(documentsJson);
+            } catch (MeilisearchException e) {
+                throw new RuntimeException("[" + indexName + "] 인덱스 문서 추가/갱신 실패", e);
+            }
+        });
     }
 
     /**
@@ -57,6 +60,10 @@ public class MeiliSearchService {
      * @return MultiSearchResult을 MeiliSearchQueryResponse로 변환한 객체를 반환한다
      */
     public MeiliSearchQueryResponse search(String query, List<String> indices) {
+        if (query == null || query.isBlank() || CollectionUtils.isEmpty(indices)) {
+            return MeiliSearchQueryResponse.from(new Results<>());
+        }
+
         try {
             MultiSearchRequest multiSearchRequest = new MultiSearchRequest();
 
@@ -70,8 +77,11 @@ public class MeiliSearchService {
             Results<MultiSearchResult> results = meiliSearchClient.multiSearch(multiSearchRequest);
 
             return MeiliSearchQueryResponse.from(results);
+
         } catch (MeilisearchException e) {
-            throw new MeilisearchException(e.getMessage());
+
+            throw new RuntimeException("MeiliSearch search failed: " + e.getMessage(), e);
+
         }
     }
 
