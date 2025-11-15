@@ -34,6 +34,9 @@ dependencies {
 	// MeiliSearch
 	implementation 'com.meilisearch.sdk:meilisearch-java:0.16.1'
 
+    //WebClient
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'
+
 	compileOnly 'org.projectlombok:lombok'
 	runtimeOnly 'com.mysql:mysql-connector-j'
 	annotationProcessor 'org.projectlombok:lombok'
