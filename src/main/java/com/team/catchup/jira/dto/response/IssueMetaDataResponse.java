@@ -19,6 +19,7 @@ public record IssueMetaDataResponse (
     public record JiraIssue(
             String id,
             String key,
+            String self,
             Fields fields
     ) {}
 
@@ -49,13 +50,13 @@ public record IssueMetaDataResponse (
             String summary,
 
             @JsonProperty("creator")
-            UserRecord creator,
+            UserID creator,
 
             @JsonProperty("created")
             String issueCreatedAt,
 
             @JsonProperty("reporter")
-            UserRecord reporter,
+            UserID reporter,
 
             @JsonProperty("priority")
             IssuePriority issuePriority,
@@ -64,22 +65,13 @@ public record IssueMetaDataResponse (
             String issueDueDate,
 
             @JsonProperty("assignee")
-            UserRecord assignee
+            UserID assignee
     ) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record IssueType(
             @JsonProperty("id")
-            String id,
-
-            @JsonProperty("iconUrl")
-            String issueTypeIconUrl,
-
-            @JsonProperty("name")
-            String issueTypeName,
-
-            @JsonProperty("subtask")
-            Boolean isSubTask
+            String id
     ) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -107,7 +99,7 @@ public record IssueMetaDataResponse (
     ) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record UserRecord(
+    public record UserID(
             @JsonProperty("accountId")
             String id
     ) {}
