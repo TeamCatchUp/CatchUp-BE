@@ -1,11 +1,14 @@
 package com.team.catchup.jira.service;
 
 import com.team.catchup.jira.dto.response.IssueMetaDataResponse;
+import com.team.catchup.jira.dto.response.IssueTypeResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -14,6 +17,7 @@ public class JiraApiService {
 
     private final WebClient jiraWebClient;
 
+    // 여기서 Token은 Pagination을 위한 NextPageToken을 뜻합니다.
     public Mono<IssueMetaDataResponse> fetchIssuesWithToken(String projectKey, String nextPageToken, Integer maxResults, boolean fetchAllFields) {
         String jql = "project = " + projectKey;
 
@@ -48,5 +52,19 @@ public class JiraApiService {
                     }
                 })
                 .doOnError(error -> log.error("[JIRA] 동기화 실패 | [PROJECT KEY]: {}", projectKey, error));
+    }
+
+    public Mono<List<IssueTypeResponse>> fetchAllIssueTypes() {
+        log.info("=== API 호출 시작 ===");
+
+        return jiraWebClient.get()
+                .uri("/rest/api/3/issuetype")
+                .retrieve()
+                .bodyToFlux(IssueTypeResponse.class)
+                .collectList()
+                .doOnSuccess(issueTypes ->
+                        log.info("[JIRA] IssueType 조회 성공 | Count: {}", issueTypes.size()))
+                .doOnError(error ->
+                        log.error("[JIRA] IssueType 조회 실패", error));
     }
 }

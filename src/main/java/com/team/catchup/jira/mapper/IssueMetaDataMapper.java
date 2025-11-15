@@ -22,6 +22,7 @@ public class IssueMetaDataMapper {
             return IssueMetadata.builder()
                     .issueId(parseIntegerSafely(jiraIssue.id()))
                     .issueKey(jiraIssue.key())
+                    .self(jiraIssue.self())
                     .issueTypeId(parseIntegerSafely(fields.issueType().id()))
                     .projectId(parseIntegerSafely(fields.project().projectId()))
                     .summary(fields.summary())

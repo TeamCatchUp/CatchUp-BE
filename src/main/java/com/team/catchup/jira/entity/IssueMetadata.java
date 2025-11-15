@@ -15,14 +15,14 @@ import java.time.LocalDateTime;
 public class IssueMetadata {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
     @Column(name = "issue_id", nullable = false, unique = true)
     private Integer issueId;
 
     @Column(name = "issue_key", nullable = false, unique = true)
     private String issueKey;
+
+    @Column(name = "issue_url")
+    private String self;
 
     @Column(name = "issue_type_id", nullable = false)
     private Integer issueTypeId;
@@ -51,9 +51,11 @@ public class IssueMetadata {
     @Column(name = "created_at")
     private LocalDateTime issueCreatedAt;
 
+    // 실제 종료일을 담고 있지 않고, 종료의 이유를 담고 있습니다.
     @Column(name = "resolution_id")
     private Integer resolutionId;
 
+    // 해당 이슈의 종료일
     @Column(name = "resolution_date")
     private LocalDateTime resolutionDate;
 
@@ -67,7 +69,7 @@ public class IssueMetadata {
     private String assigneeId;
 
     @Builder
-    public IssueMetadata(Integer issueId, String issueKey, Integer issueTypeId,
+    public IssueMetadata(Integer issueId, String issueKey, String self, Integer issueTypeId,
                          Integer projectId, String summary, String description,
                          Integer parentIssueId, Integer statusId, Integer priorityId,
                          LocalDateTime duedate, LocalDateTime issueCreatedAt,
@@ -75,6 +77,7 @@ public class IssueMetadata {
                          String creatorId, String reporterId, String assigneeId) {
         this.issueId = issueId;
         this.issueKey = issueKey;
+        this.self = self;
         this.issueTypeId = issueTypeId;
         this.projectId = projectId;
         this.summary = summary;
