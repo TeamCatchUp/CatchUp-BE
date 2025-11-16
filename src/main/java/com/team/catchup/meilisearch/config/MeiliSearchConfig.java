@@ -1,4 +1,4 @@
-package com.team.catchup.config;
+package com.team.catchup.meilisearch.config;
 
 import com.meilisearch.sdk.Client;
 import com.meilisearch.sdk.Config;
