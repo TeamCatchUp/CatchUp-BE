@@ -4,8 +4,10 @@ import com.team.catchup.jira.dto.response.IssueMetaDataResponse;
 import com.team.catchup.jira.entity.IssueMetadata;
 import com.team.catchup.jira.mapper.IssueMetaDataMapper;
 import com.team.catchup.jira.repository.IssueMetaDataRepository;
+import com.team.catchup.meilisearch.listener.event.SyncedIssueMetaDataEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,6 +22,7 @@ public class JiraSyncService {
     private final JiraApiService jiraApiService;
     private final IssueMetaDataRepository issueMetaDataRepository;
     private final IssueMetaDataMapper issueMetaDataMapper;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * 초기 전체 동기화 (Full Sync)
@@ -55,6 +58,9 @@ public class JiraSyncService {
                 log.info("[JIRA][FULL SYNC 진행중] Page: {}, Fetched: {}, Saved: {}, Skipped: {}",
                         pageCount, response.issues().size(), savedIssues.size(),
                         response.issues().size() - savedIssues.size());
+
+                // MeiliSearch Document 생성 이벤트 발행
+                eventPublisher.publishEvent(new SyncedIssueMetaDataEvent(response));
 
                 // 페이지네이션
                 hasMore = !Boolean.TRUE.equals(response.isLast());
