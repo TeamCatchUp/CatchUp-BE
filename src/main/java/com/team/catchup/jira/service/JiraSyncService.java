@@ -1,10 +1,14 @@
 package com.team.catchup.jira.service;
 
 import com.team.catchup.jira.dto.response.IssueMetaDataResponse;
+import com.team.catchup.jira.dto.response.IssueTypeResponse;
 import com.team.catchup.jira.entity.IssueMetadata;
+import com.team.catchup.jira.entity.IssueType;
 import com.team.catchup.jira.mapper.IssueMetaDataMapper;
+import com.team.catchup.jira.mapper.IssueTypeMapper;
 import com.team.catchup.jira.repository.IssueMetaDataRepository;
 import com.team.catchup.meilisearch.listener.event.SyncedIssueMetaDataEvent;
+import com.team.catchup.jira.repository.IssueTypeRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -23,6 +27,8 @@ public class JiraSyncService {
     private final IssueMetaDataRepository issueMetaDataRepository;
     private final IssueMetaDataMapper issueMetaDataMapper;
     private final ApplicationEventPublisher eventPublisher;
+    private final IssueTypeRepository issueTypeRepository;
+    private final IssueTypeMapper issueTypeMapper;
 
     /**
      * 초기 전체 동기화 (Full Sync)
@@ -118,5 +124,46 @@ public class JiraSyncService {
         }
 
         return response.issues().size();
+    }
+
+    // 테스트를 위해 별도로 구현했지만, FullSync에 포함될 예정입니다.
+    @Transactional
+    public void syncAllIssueTypes() {
+        log.info("[JIRA][ISSUE TYPE SYNC 시작]");
+
+        List<IssueTypeResponse> responses = jiraApiService
+                .fetchAllIssueTypes()
+                .block();
+
+        if (responses == null || responses.isEmpty()) {
+            log.warn("[JIRA][ISSUE TYPE SYNC] 조회된 IssueType이 없습니다.");
+            return;
+        }
+
+        int savedCount = 0;
+        int updatedCount = 0;
+
+        for (IssueTypeResponse response : responses) {
+            try {
+                IssueType issueType = issueTypeMapper.toEntity(response);
+
+                // 기존 존재 여부 확인
+                boolean exists = issueTypeRepository.existsById(issueType.getId());
+
+                if (exists) {
+                    updatedCount++;
+                } else {
+                    savedCount++;
+                }
+
+                issueTypeRepository.save(issueType);
+
+            } catch (Exception e) {
+                log.error("IssueType 저장 실패: {}", response.id(), e);
+            }
+        }
+
+        log.info("[ISSUE TYPE SYNC 완료] 신규: {}, 업데이트: {}, 총: {}",
+                savedCount, updatedCount, responses.size());
     }
 }
