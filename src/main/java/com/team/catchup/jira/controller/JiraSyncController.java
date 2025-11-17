@@ -86,4 +86,29 @@ public class JiraSyncController {
             return ResponseEntity.internalServerError().body(errorResponse);
         }
     }
+
+    @PostMapping("/issue-types")
+    public ResponseEntity<Map<String, Object>> syncIssueTypes() {
+        log.info("[API] IssueType Sync 요청");
+
+        try {
+            // 동기화 실행
+            jiraSyncService.syncAllIssueTypes();
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "IssueType sync completed");
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            log.error("[API] IssueType Sync 실패", e);
+
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "IssueType sync failed: " + e.getMessage());
+
+            return ResponseEntity.internalServerError().body(errorResponse);
+        }
+    }
 }
