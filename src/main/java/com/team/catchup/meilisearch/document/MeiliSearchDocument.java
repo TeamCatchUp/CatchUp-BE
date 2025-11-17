@@ -14,7 +14,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
         property = "documentType"
 )
 @JsonSubTypes({
-        @JsonSubTypes.Type(value = JiraIssueDocument.class, name = "jiraIssue")
+        @JsonSubTypes.Type(value = JiraIssueDocument.class, name = "JIRA_ISSUE")
         /* TODO: 추후에 ConfluenceDocument, NotionDocument 등 추가 등록 */
 })
 public interface MeiliSearchDocument {
