@@ -4,8 +4,10 @@ import com.team.catchup.jira.dto.response.IssueMetaDataResponse;
 import com.team.catchup.jira.entity.IssueMetadata;
 import com.team.catchup.jira.mapper.IssueMetaDataMapper;
 import com.team.catchup.jira.repository.IssueMetaDataRepository;
+import com.team.catchup.meilisearch.listener.event.SyncedIssueMetaDataEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,9 +22,19 @@ public class JiraSyncService {
     private final JiraApiService jiraApiService;
     private final IssueMetaDataRepository issueMetaDataRepository;
     private final IssueMetaDataMapper issueMetaDataMapper;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
-     * 초기 전체 동기화 (Full Sync)
+     * Performs a full synchronization of Jira issues for the specified project, persisting new issues
+     * to the database and publishing an event for each fetched page to trigger downstream indexing.
+     *
+     * Processes issues in pages using the provided maxResults for page size, skips issues that already
+     * exist in the database, and logs progress and totals for saved and skipped items.
+     *
+     * @param projectKey the Jira project key whose issues will be synchronized
+     * @param maxResults the maximum number of issues to fetch per page; may be null to use service defaults
+     * @throws RuntimeException if processing a fetched page fails; the thrown exception's message
+     *                          includes the page number where the failure occurred
      */
     @Transactional
     public void fullSync(String projectKey, Integer maxResults) {
@@ -55,6 +67,9 @@ public class JiraSyncService {
                 log.info("[JIRA][FULL SYNC 진행중] Page: {}, Fetched: {}, Saved: {}, Skipped: {}",
                         pageCount, response.issues().size(), savedIssues.size(),
                         response.issues().size() - savedIssues.size());
+
+                // MeiliSearch Document 생성 이벤트 발행
+                eventPublisher.publishEvent(new SyncedIssueMetaDataEvent(response));
 
                 // 페이지네이션
                 hasMore = !Boolean.TRUE.equals(response.isLast());
