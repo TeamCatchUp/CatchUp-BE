@@ -6,6 +6,9 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Entity
 @Table
 @Getter
@@ -36,6 +39,9 @@ public class IssueType {
     // 해당 커스텀 이슈를 적용할 있는 프로젝트의 아이디입니다.
     @Column(name = "scope_project_id")
     private Integer scopeProjectId;
+
+    @OneToMany(mappedBy = "issueType", fetch = FetchType.LAZY)
+    private List<IssueMetadata> issueMetadata = new ArrayList<>();
 
     @Builder
     public IssueType(Integer id, String name, String iconUrl,

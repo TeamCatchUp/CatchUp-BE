@@ -6,6 +6,9 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Entity
 @Table(name = "jira_user")
 @Getter
@@ -33,6 +36,15 @@ public class JiraUser {
 
     @Column(name = "self_url", length = 500)
     private String selfUrl;
+
+    @OneToMany(mappedBy = "creator", fetch = FetchType.LAZY)
+    private List<IssueMetadata> createdIssues = new ArrayList<>();
+
+    @OneToMany(mappedBy = "reporter", fetch = FetchType.LAZY)
+    private List<IssueMetadata> reportedIssues = new ArrayList<>();
+
+    @OneToMany(mappedBy = "assignee", fetch = FetchType.LAZY)
+    private List<IssueMetadata> assignedIssues = new ArrayList<>();
 
     @Builder
     public JiraUser(String accountId, String accountType, String displayName,

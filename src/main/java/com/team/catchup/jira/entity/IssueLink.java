@@ -1,9 +1,6 @@
 package com.team.catchup.jira.entity;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -20,22 +17,25 @@ public class IssueLink {
     private Integer linkId;
 
     // Outward Issue | ex) blocks
-    @Column(name = "outward_issue_id")
-    private Integer outwardIssueId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "outward_issue_id")
+    private IssueMetadata outwardIssue;
 
     // Inward Issue | ex) is Blocked By
-    @Column(name = "inward_issue_id")
-    private Integer inwardIssueId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "inward_issue_id")
+    private IssueMetadata inwardIssue;
 
-    @Column(name = "link_type_id", nullable = false)
-    private Integer linkTypeId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "link_type_id", nullable = false)
+    private IssueLinkType linkType;
 
     @Builder
-    public IssueLink(Integer linkId, Integer outwardIssueId, Integer inwardIssueId, Integer linkTypeId) {
+    public IssueLink(Integer linkId, IssueMetadata outwardIssue, IssueMetadata inwardIssue, IssueLinkType linkType) {
         this.linkId = linkId;
-        this.outwardIssueId = outwardIssueId;
-        this.inwardIssueId = inwardIssueId;
-        this.linkTypeId = linkTypeId;
+        this.outwardIssue = outwardIssue;
+        this.inwardIssue = inwardIssue;
+        this.linkType = linkType;
     }
 
 }

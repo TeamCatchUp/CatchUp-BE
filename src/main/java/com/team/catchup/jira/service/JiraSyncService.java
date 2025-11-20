@@ -180,6 +180,7 @@ public class JiraSyncService {
     }
     private void saveIssueLinks(List<IssueMetaDataResponse.IssueLink> issueLinks) {
         if (issueLinks == null || issueLinks.isEmpty()) {
+            log.debug("IssueLinks가 null이거나 비어있음");
             return;
         }
 
@@ -196,62 +197,49 @@ public class JiraSyncService {
                 Integer linkId = Integer.parseInt(linkDto.id());
                 Integer linkTypeId = Integer.parseInt(linkDto.type().id());
 
-                Integer inwardIssueId = null;
-                Integer outwardIssueId = null;
-
-                if (linkDto.inwardIssue() != null) {
-                    inwardIssueId = Integer.parseInt(linkDto.inwardIssue().id());
-                }
-
-                if (linkDto.outwardIssue() != null) {
-                    outwardIssueId = Integer.parseInt(linkDto.outwardIssue().id());
-                }
-
-                // 1. LinkType 먼저 저장 (중복 체크)
                 if (!issueLinkTypeRepository.existsById(linkTypeId)) {
                     IssueLinkType linkType = issueLinkMapper.linkTypeToEntity(linkDto.type());
                     issueLinkTypeRepository.save(linkType);
                     log.debug("LinkType 저장 완료: {} - {}", linkTypeId, linkDto.type().name());
                 }
 
-                // 2. IssueLink 저장 또는 업데이트
                 if (issueLinkRepository.existsById(linkId)) {
                     // 기존 링크가 있으면 업데이트
                     IssueLink existingLink = issueLinkRepository.findById(linkId)
                             .orElseThrow();
 
-                    // 기존 값과 새 값을 병합
-                    Integer finalInwardId = existingLink.getInwardIssueId() != null ?
-                            existingLink.getInwardIssueId() : inwardIssueId;
-                    Integer finalOutwardId = existingLink.getOutwardIssueId() != null ?
-                            existingLink.getOutwardIssueId() : outwardIssueId;
+                    IssueMetadata finalInward = existingLink.getInwardIssue();
+                    IssueMetadata finalOutward = existingLink.getOutwardIssue();
 
-                    // 새로운 Entity 생성 (불변 객체이므로)
+                    if (linkDto.inwardIssue() != null && finalInward == null) {
+                        Integer inwardId = Integer.parseInt(linkDto.inwardIssue().id());
+                        finalInward = issueMetaDataRepository.findById(inwardId).orElse(null);
+                    }
+
+                    if (linkDto.outwardIssue() != null && finalOutward == null) {
+                        Integer outwardId = Integer.parseInt(linkDto.outwardIssue().id());
+                        finalOutward = issueMetaDataRepository.findById(outwardId).orElse(null);
+                    }
+
+                    IssueLinkType linkType = issueLinkTypeRepository.findById(linkTypeId)
+                            .orElseThrow();
+
                     IssueLink updatedLink = IssueLink.builder()
                             .linkId(linkId)
-                            .inwardIssueId(finalInwardId)
-                            .outwardIssueId(finalOutwardId)
-                            .linkTypeId(linkTypeId)
+                            .inwardIssue(finalInward)
+                            .outwardIssue(finalOutward)
+                            .linkType(linkType)
                             .build();
 
                     issueLinkRepository.save(updatedLink);
                     updatedCount++;
-                    log.debug("IssueLink 업데이트: {} (Inward: {}, Outward: {})",
-                            linkId, finalInwardId, finalOutwardId);
+                    log.debug("IssueLink 업데이트: {}", linkId);
 
                 } else {
-                    // 새로운 링크 저장
-                    IssueLink issueLink = IssueLink.builder()
-                            .linkId(linkId)
-                            .inwardIssueId(inwardIssueId)
-                            .outwardIssueId(outwardIssueId)
-                            .linkTypeId(linkTypeId)
-                            .build();
-
+                    IssueLink issueLink = issueLinkMapper.issueLinkToEntity(linkDto);
                     issueLinkRepository.save(issueLink);
                     savedCount++;
-                    log.debug("IssueLink 저장 완료: {} (Inward: {}, Outward: {})",
-                            linkId, inwardIssueId, outwardIssueId);
+                    log.debug("IssueLink 저장 완료: {}", linkId);
                 }
 
             } catch (Exception e) {
@@ -286,7 +274,7 @@ public class JiraSyncService {
                 }
 
                 // Entity 변환 및 저장
-                IssueAttachment attachment = issueAttachmentMapper.IssueAttachmentToEntity(attachmentDto, issueId);
+                IssueAttachment attachment = issueAttachmentMapper.toEntity(attachmentDto, issueId);
                 issueAttachmentRepository.save(attachment);
                 savedCount++;
 

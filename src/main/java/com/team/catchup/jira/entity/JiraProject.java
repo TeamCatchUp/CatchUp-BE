@@ -7,6 +7,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "jira_project")
@@ -49,6 +51,9 @@ public class JiraProject {
 
     @Column(name = "last_update_time")
     private LocalDateTime lastIssueUpdateTime;
+
+    @OneToMany(mappedBy = "project",  fetch = FetchType.LAZY)
+    private List<IssueMetadata> issues = new ArrayList<>();
 
     @Builder
     public JiraProject(Integer projectId, String projectKey, String name, String description,

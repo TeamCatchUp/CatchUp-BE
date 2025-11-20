@@ -18,8 +18,9 @@ public class IssueAttachment {
     @Column(name = "attachment_id")
     private Integer id;
 
-    @Column(name = "issue_id", nullable = false)
-    private Integer issueId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "issue_id", nullable = false)
+    private IssueMetadata issueId;
 
     @Column(name = "file_name", nullable = false)
     private String fileName;
@@ -43,7 +44,7 @@ public class IssueAttachment {
     private String thumbnailUrl;
 
     @Builder
-    public IssueAttachment(Integer id, Integer issueId, String fileName, String authorId, LocalDateTime createdAt,
+    public IssueAttachment(Integer id, IssueMetadata issueId, String fileName, String authorId, LocalDateTime createdAt,
                            Long size, String mimetype, String downloadUrl, String thumbnailUrl) {
         this.id = id;
         this.issueId = issueId;

@@ -1,13 +1,13 @@
 package com.team.catchup.jira.entity;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "issue_link_type")
@@ -30,6 +30,9 @@ public class IssueLinkType {
 
     @Column(name = "self_url", length = 500)
     private String selfUrl;
+
+    @OneToMany(mappedBy = "linkType", fetch = FetchType.LAZY)
+    private List<IssueLink> issueLinks = new ArrayList<>();
 
     @Builder
     public IssueLinkType(Integer linkTypeId, String name, String inward,

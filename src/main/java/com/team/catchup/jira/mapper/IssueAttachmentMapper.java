@@ -2,6 +2,9 @@ package com.team.catchup.jira.mapper;
 
 import com.team.catchup.jira.dto.response.IssueMetaDataResponse;
 import com.team.catchup.jira.entity.IssueAttachment;
+import com.team.catchup.jira.entity.IssueMetadata;
+import com.team.catchup.jira.repository.IssueMetaDataRepository;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -10,26 +13,39 @@ import java.time.format.DateTimeFormatter;
 
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class IssueAttachmentMapper {
 
     private static final DateTimeFormatter JIRA_DATE_FORMATTER =
             DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSZ");
 
+    private final IssueMetaDataRepository issueMetaDataRepository;
+
     /**
      * Issue Attachment DTO -> Entity
      */
-    public IssueAttachment IssueAttachmentToEntity(IssueMetaDataResponse.IssueAttachment attachmentResponse, Integer issueId) {
-        return IssueAttachment.builder()
-                .id(parseIntegerSafely(attachmentResponse.id()))
-                .issueId(issueId)
-                .fileName(attachmentResponse.filename())
-                .authorId(attachmentResponse.author().id())
-                .createdAt(parseDateTimeSafely(attachmentResponse.created()))
-                .size(parseLongSafely(attachmentResponse.size()))
-                .mimetype(attachmentResponse.mimetype())
-                .downloadUrl(attachmentResponse.content())
-                .thumbnailUrl(attachmentResponse.thumbnail())
-                .build();
+    public IssueAttachment toEntity(IssueMetaDataResponse.IssueAttachment attachmentResponse, Integer issueId) {
+        try{
+            IssueMetadata issue = issueMetaDataRepository.findById(issueId)
+                    .orElseThrow(() -> new RuntimeException("Issue Not Found :" + issueId));
+
+            return IssueAttachment.builder()
+                    .id(parseIntegerSafely(attachmentResponse.id()))
+                    .issueId(issue)
+                    .fileName(attachmentResponse.filename())
+                    .authorId(attachmentResponse.author().id() != null ?
+                            attachmentResponse.author().id() : null)
+                    .createdAt(parseDateTimeSafely(attachmentResponse.created()))
+                    .size(parseLongSafely(attachmentResponse.size()))
+                    .mimetype(attachmentResponse.mimetype())
+                    .downloadUrl(attachmentResponse.content())
+                    .thumbnailUrl(attachmentResponse.thumbnail())
+                    .build();
+        } catch(Exception e){
+            log.error("Failed to Map Attachment : {}",attachmentResponse.id());
+            throw new RuntimeException("Attachment Mappling Failed", e);
+        }
+
     }
 
     private Integer parseIntegerSafely(String value) {

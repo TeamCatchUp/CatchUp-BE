@@ -7,6 +7,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "issue_metadata")
@@ -24,11 +26,13 @@ public class IssueMetadata {
     @Column(name = "issue_url")
     private String self;
 
-    @Column(name = "issue_type_id", nullable = false)
-    private Integer issueTypeId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "issue_type_id")
+    private IssueType issueType;
 
-    @Column(name = "project_id")
-    private Integer projectId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "project_id")
+    private JiraProject project;
 
     @Column(name = "summary")
     private String summary;
@@ -59,27 +63,40 @@ public class IssueMetadata {
     @Column(name = "resolution_date")
     private LocalDateTime resolutionDate;
 
-    @Column(name = "creator_id")
-    private String creatorId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "creator_id")
+    private JiraUser creator;
 
-    @Column(name = "reporter_id")
-    private String reporterId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "reporter_id")
+    private JiraUser reporter;
 
-    @Column(name = "assignee_id")
-    private String assigneeId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "assignee_id")
+    private JiraUser assignee;
+
+    @OneToMany(mappedBy = "issueId", fetch = FetchType.LAZY)
+    private List<IssueAttachment> attachments = new ArrayList<>();
+
+    @OneToMany(mappedBy = "inwardIssue", fetch = FetchType.LAZY)
+    private List<IssueLink> inwardLinks = new ArrayList<>();
+
+    @OneToMany(mappedBy = "outwardIssue", fetch = FetchType.LAZY)
+    private List<IssueLink> outwardLinks = new ArrayList<>();
 
     @Builder
-    public IssueMetadata(Integer issueId, String issueKey, String self, Integer issueTypeId,
-                         Integer projectId, String summary, String description,
+    public IssueMetadata(Integer issueId, String issueKey, String self,
+                         IssueType issueType, JiraProject project,
+                         String summary, String description,
                          Integer parentIssueId, Integer statusId, Integer priorityId,
                          LocalDateTime duedate, LocalDateTime issueCreatedAt,
                          Integer resolutionId, LocalDateTime resolutionDate,
-                         String creatorId, String reporterId, String assigneeId) {
+                         JiraUser creator, JiraUser reporter, JiraUser assignee) {
         this.issueId = issueId;
         this.issueKey = issueKey;
         this.self = self;
-        this.issueTypeId = issueTypeId;
-        this.projectId = projectId;
+        this.issueType = issueType;
+        this.project = project;
         this.summary = summary;
         this.description = description;
         this.parentIssueId = parentIssueId;
@@ -89,8 +106,8 @@ public class IssueMetadata {
         this.issueCreatedAt = issueCreatedAt;
         this.resolutionId = resolutionId;
         this.resolutionDate = resolutionDate;
-        this.creatorId = creatorId;
-        this.reporterId = reporterId;
-        this.assigneeId = assigneeId;
+        this.creator = creator;
+        this.reporter = reporter;
+        this.assignee = assignee;
     }
 }
