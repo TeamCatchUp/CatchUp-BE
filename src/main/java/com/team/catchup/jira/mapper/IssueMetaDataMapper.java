@@ -54,7 +54,7 @@ public class IssueMetaDataMapper {
         try {
             return Integer.parseInt(value);
         } catch (NumberFormatException e) {
-            log.warn("정수 파싱 실패: {}", value);
+            log.warn("Failed Parsing String to Integer: {}", value);
             return null;
         }
     }
@@ -66,7 +66,7 @@ public class IssueMetaDataMapper {
         try {
             return LocalDateTime.parse(dateString, JIRA_DATE_FORMATTER);
         } catch (Exception e) {
-            log.warn("날짜 파싱 실패: {}", dateString);
+            log.warn("Failed Parsing String to LocalDateTime: {}", dateString);
             return null;
         }
     }

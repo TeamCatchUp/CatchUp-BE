@@ -21,26 +21,22 @@ public class JiraSyncController {
      * Full Sync
      * GET /api/jira/sync/full?projectKey=BJDD&maxResults=100
      */
-    @GetMapping("/full")
+    @PostMapping("/full")
     public ResponseEntity<Map<String, Object>> fullSync(
-            @RequestParam String projectKey,
-            @RequestParam(defaultValue = "100") Integer maxResults
+            @RequestParam(name = "projectKey") String projectKey,
+            @RequestParam(name = "maxResults", defaultValue = "100") Integer maxResults
     ) {
         log.info("[API] Full Sync 요청 - Project: {}, MaxResults: {}", projectKey, maxResults);
 
         try {
-            // 전체 이슈 개수 조회
-            Integer totalCount = jiraSyncService.getTotalIssueCount(projectKey);
-            log.info("[API] 총 이슈 개수: {}", totalCount);
-
             // 동기화 실행
-            jiraSyncService.fullSync(projectKey, maxResults);
+            int totalSaved = jiraSyncService.fullSync(projectKey, maxResults);
 
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("message", "Full sync completed");
             response.put("projectKey", projectKey);
-            response.put("totalIssues", totalCount);
+            response.put("totalSaved", totalSaved);
 
             return ResponseEntity.ok(response);
 
@@ -56,57 +52,76 @@ public class JiraSyncController {
         }
     }
 
-    /**
-     * 프로젝트의 전체 이슈 개수만 조회
-     * GET /api/jira/sync/count?projectKey=BJDD
-     */
-    @GetMapping("/count")
-    public ResponseEntity<Map<String, Object>> getIssueCount(
-            @RequestParam String projectKey
+    @PostMapping("/issueType")
+    public ResponseEntity<Map<String, Object>> syncIssueType(
+            @RequestParam(name = "projectKey") String projectKey
     ) {
-        log.info("[API] Issue Count 요청 - Project: {}", projectKey);
-
-        try {
-            Integer totalCount = jiraSyncService.getTotalIssueCount(projectKey);
+        try{
+            int totalSaved = jiraSyncService.syncAllIssueTypes();
 
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
+            response.put("message", "Issue Type sync completed");
             response.put("projectKey", projectKey);
-            response.put("totalIssues", totalCount);
+            response.put("totalSaved", totalSaved);
 
             return ResponseEntity.ok(response);
-
-        } catch (Exception e) {
-            log.error("[API] Issue Count 조회 실패", e);
+    } catch (Exception e) {
+            log.error("[API] Issue Type Sync 실패", e);
 
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("success", false);
-            errorResponse.put("message", "Failed to get issue count: " + e.getMessage());
+            errorResponse.put("message", "Issue Type sync failed: " + e.getMessage());
+            errorResponse.put("projectKey", projectKey);
 
             return ResponseEntity.internalServerError().body(errorResponse);
         }
     }
 
-    @PostMapping("/issue-types")
-    public ResponseEntity<Map<String, Object>> syncIssueTypes() {
-        log.info("[API] IssueType Sync 요청");
+    @PostMapping("/users")
+    public ResponseEntity<Map<String, Object>> syncUsers() {
+        log.info("[API] Jira User Sync 요청");
 
         try {
-            // 동기화 실행
-            jiraSyncService.syncAllIssueTypes();
+            jiraSyncService.syncAllUsers();
 
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
-            response.put("message", "IssueType sync completed");
+            response.put("message", "Jira User sync completed");
 
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
-            log.error("[API] IssueType Sync 실패", e);
+            log.error("[API] Jira User Sync 실패", e);
 
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("success", false);
-            errorResponse.put("message", "IssueType sync failed: " + e.getMessage());
+            errorResponse.put("message", "Jira User sync failed: " + e.getMessage());
+
+            return ResponseEntity.internalServerError().body(errorResponse);
+        }
+    }
+
+    @PostMapping("/projects")
+    public ResponseEntity<Map<String, Object>> syncProjects() {
+        log.info("[API] Project Sync 요청");
+
+        try {
+            // 동기화 실행
+            jiraSyncService.syncAllProjects();
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Project sync completed");
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            log.error("[API] Project Sync 실패", e);
+
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "Project sync failed: " + e.getMessage());
 
             return ResponseEntity.internalServerError().body(errorResponse);
         }
