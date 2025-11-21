@@ -7,7 +7,7 @@ import org.springframework.stereotype.Repository;
 import java.util.Optional;
 
 @Repository
-public interface IssueMetaDataRepository extends JpaRepository<IssueMetadata, Long> {
+public interface IssueMetaDataRepository extends JpaRepository<IssueMetadata, Integer> {
 
     Optional<IssueMetadata> findByIssueKey(String issueKey);
 

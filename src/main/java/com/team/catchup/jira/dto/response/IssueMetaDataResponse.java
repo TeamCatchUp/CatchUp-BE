@@ -34,9 +34,6 @@ public record IssueMetaDataResponse (
             @JsonProperty("project")
             Project project,
 
-            @JsonProperty("description")
-            String description,
-
             @JsonProperty("statusCategory")
             StatusCategory statusCategory,
 
@@ -65,7 +62,55 @@ public record IssueMetaDataResponse (
             String issueDueDate,
 
             @JsonProperty("assignee")
-            UserID assignee
+            UserID assignee,
+
+            @JsonProperty("issuelinks")
+            List<IssueLink> issueLinks,
+
+            @JsonProperty("attachment")
+            List<IssueAttachment> attachments
+    ) {}
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record IssueLink(
+            @JsonProperty("id")
+            String id,
+
+            @JsonProperty("type")
+            LinkType type,
+
+            @JsonProperty("inwardIssue")
+            LinkedIssue inwardIssue,
+
+            @JsonProperty("outwardIssue")
+            LinkedIssue outwardIssue
+    ) {}
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record LinkType(
+            @JsonProperty("id")
+            String id,
+
+            @JsonProperty("name")
+            String name,
+
+            @JsonProperty("inward")
+            String inward,
+
+            @JsonProperty("outward")
+            String outward,
+
+            @JsonProperty("self")
+            String self
+    ) {}
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record LinkedIssue(
+            @JsonProperty("id")
+            String id,
+
+            @JsonProperty("key")
+            String key
     ) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -108,5 +153,32 @@ public record IssueMetaDataResponse (
     public record IssuePriority(
             @JsonProperty("id")
             String priorityId
+    ) {}
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record IssueAttachment(
+            @JsonProperty("id")
+            String id,
+
+            @JsonProperty("filename")
+            String filename,
+
+            @JsonProperty("author")
+            UserID author,
+
+            @JsonProperty("created")
+            String created,
+
+            @JsonProperty("size")
+            String size,
+
+            @JsonProperty("mimeType")
+            String mimetype,
+
+            @JsonProperty("content")
+            String content,
+
+            @JsonProperty("thumbnail")
+            String thumbnail
     ) {}
 }

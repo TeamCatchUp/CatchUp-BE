@@ -3,11 +3,9 @@ package com.team.catchup.jira.config;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.stereotype.Component;
 
 @Getter
 @Setter
-@Component
 // application.yml의 jira: 설정값을 자동으로 바인딩
 @ConfigurationProperties(prefix = "jira")
 public class JiraProperties {
