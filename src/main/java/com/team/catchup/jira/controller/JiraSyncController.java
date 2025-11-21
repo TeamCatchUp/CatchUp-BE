@@ -1,13 +1,14 @@
 package com.team.catchup.jira.controller;
 
+import com.team.catchup.jira.dto.SyncStep;
+import com.team.catchup.jira.dto.response.FullSyncResult;
 import com.team.catchup.jira.service.JiraSyncService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
 
 @Slf4j
 @RestController
@@ -18,112 +19,41 @@ public class JiraSyncController {
     private final JiraSyncService jiraSyncService;
 
     /**
-     * Full Sync
-     * GET /api/jira/sync/full?projectKey=BJDD&maxResults=100
+     * 전체 동기화 (처음부터)
+     * POST /api/jira/sync/full
      */
     @PostMapping("/full")
-    public ResponseEntity<Map<String, Object>> fullSync(
-            @RequestParam(name = "projectKey") String projectKey,
-            @RequestParam(name = "maxResults", defaultValue = "100") Integer maxResults
+    public ResponseEntity<FullSyncResult> fullSync() {
+        log.info("[API] Full Sync 요청");
+        FullSyncResult result = jiraSyncService.fullSync();
+        return ResponseEntity.ok(result);
+    }
+
+    /**
+     * 특정 단계부터 동기화 재시도
+     * POST /api/jira/sync/retry?startFrom=USERS&projectKeys=PROJ-A,PROJ-B
+     */
+    @PostMapping("/retry")
+    public ResponseEntity<FullSyncResult> retrySync(
+            @RequestParam(name = "startFrom") SyncStep startFrom,
+            @RequestParam(name = "projectKeys", required = false) List<String> projectKeys
     ) {
-        log.info("[API] Full Sync 요청 - Project: {}, MaxResults: {}", projectKey, maxResults);
-
-        try {
-            // 동기화 실행
-            int totalSaved = jiraSyncService.fullSync(projectKey, maxResults);
-
-            Map<String, Object> response = new HashMap<>();
-            response.put("success", true);
-            response.put("message", "Full sync completed");
-            response.put("projectKey", projectKey);
-            response.put("totalSaved", totalSaved);
-
-            return ResponseEntity.ok(response);
-
-        } catch (Exception e) {
-            log.error("[API] Full Sync 실패", e);
-
-            Map<String, Object> errorResponse = new HashMap<>();
-            errorResponse.put("success", false);
-            errorResponse.put("message", "Full sync failed: " + e.getMessage());
-            errorResponse.put("projectKey", projectKey);
-
-            return ResponseEntity.internalServerError().body(errorResponse);
-        }
+        log.info("[API] Retry Sync 요청 - StartFrom: {}, ProjectKeys: {}", startFrom, projectKeys);
+        FullSyncResult result = jiraSyncService.fullSyncFrom(startFrom, projectKeys);
+        return ResponseEntity.ok(result);
     }
 
-    @PostMapping("/issueType")
-    public ResponseEntity<Map<String, Object>> syncIssueType(
-            @RequestParam(name = "projectKey") String projectKey
+    /**
+     * 실패한 프로젝트만 재시도
+     * POST /api/jira/sync/retry/projects
+     * Body: ["PROJ-A", "PROJ-B"]
+     */
+    @PostMapping("/retry/projects")
+    public ResponseEntity<FullSyncResult> retryFailedProjects(
+            @RequestBody List<String> failedProjectKeys
     ) {
-        try{
-            int totalSaved = jiraSyncService.syncAllIssueTypes();
-
-            Map<String, Object> response = new HashMap<>();
-            response.put("success", true);
-            response.put("message", "Issue Type sync completed");
-            response.put("projectKey", projectKey);
-            response.put("totalSaved", totalSaved);
-
-            return ResponseEntity.ok(response);
-    } catch (Exception e) {
-            log.error("[API] Issue Type Sync 실패", e);
-
-            Map<String, Object> errorResponse = new HashMap<>();
-            errorResponse.put("success", false);
-            errorResponse.put("message", "Issue Type sync failed: " + e.getMessage());
-            errorResponse.put("projectKey", projectKey);
-
-            return ResponseEntity.internalServerError().body(errorResponse);
-        }
-    }
-
-    @PostMapping("/users")
-    public ResponseEntity<Map<String, Object>> syncUsers() {
-        log.info("[API] Jira User Sync 요청");
-
-        try {
-            jiraSyncService.syncAllUsers();
-
-            Map<String, Object> response = new HashMap<>();
-            response.put("success", true);
-            response.put("message", "Jira User sync completed");
-
-            return ResponseEntity.ok(response);
-
-        } catch (Exception e) {
-            log.error("[API] Jira User Sync 실패", e);
-
-            Map<String, Object> errorResponse = new HashMap<>();
-            errorResponse.put("success", false);
-            errorResponse.put("message", "Jira User sync failed: " + e.getMessage());
-
-            return ResponseEntity.internalServerError().body(errorResponse);
-        }
-    }
-
-    @PostMapping("/projects")
-    public ResponseEntity<Map<String, Object>> syncProjects() {
-        log.info("[API] Project Sync 요청");
-
-        try {
-            // 동기화 실행
-            jiraSyncService.syncAllProjects();
-
-            Map<String, Object> response = new HashMap<>();
-            response.put("success", true);
-            response.put("message", "Project sync completed");
-
-            return ResponseEntity.ok(response);
-
-        } catch (Exception e) {
-            log.error("[API] Project Sync 실패", e);
-
-            Map<String, Object> errorResponse = new HashMap<>();
-            errorResponse.put("success", false);
-            errorResponse.put("message", "Project sync failed: " + e.getMessage());
-
-            return ResponseEntity.internalServerError().body(errorResponse);
-        }
+        log.info("[API] Retry Failed Projects 요청 - Projects: {}", failedProjectKeys);
+        FullSyncResult result = jiraSyncService.retryFailedProjects(failedProjectKeys);
+        return ResponseEntity.ok(result);
     }
 }

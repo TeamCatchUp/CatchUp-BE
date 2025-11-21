@@ -36,12 +36,9 @@ public class WebClientConfig {
         log.info("Email: {}", jiraProperties.getEmail());
         log.info("API Token: {}", jiraProperties.getApiToken() != null ? "EXISTS (length: " + jiraProperties.getApiToken().length() + ")" : "NULL");
 
-        // 원본 방식: email:apiToken을 Base64 인코딩
+        // Email + API Token -> Base 64 Encoding
         String credentials = jiraProperties.getEmail() + ":" + jiraProperties.getApiToken();
         String encodedCredentials = Base64.getEncoder().encodeToString(credentials.getBytes());
-
-        log.info("Credentials length: {}", credentials.length());
-        log.info("Encoded length: {}", encodedCredentials.length());
 
         // HTTP Connection Pool 설정
         // 현재 설정 100 커넥션, 타임아웃 45초 -> 테스트해보고 재설정

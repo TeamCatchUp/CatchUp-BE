@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -19,8 +20,11 @@ import java.time.format.DateTimeParseException;
 @RequiredArgsConstructor
 public class IssueMetaDataMapper {
 
-    private static final DateTimeFormatter FORMATTER =
+    private static final DateTimeFormatter DATETIME_FORMATTER =
             DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSZ");
+
+    private static final DateTimeFormatter DATE_FORMATTER =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     private final IssueTypeRepository issueTypeRepository;
     private final JiraProjectRepository jiraProjectRepository;
@@ -70,7 +74,6 @@ public class IssueMetaDataMapper {
                     .issueType(issueType)
                     .project(jiraProject)
                     .summary(fields.summary())
-                    .description(fields.description())
                     .parentIssueId(fields.parentIssue() != null ?
                             parseIntegerSafely(fields.parentIssue().parentIssueId()) : null)
                     .statusId(parseIntegerSafely(fields.statusCategory().statusId()))
@@ -108,11 +111,18 @@ public class IssueMetaDataMapper {
         if (dateTimeString == null || dateTimeString.isBlank()) {
             return null;
         }
+
         try {
-            return LocalDateTime.parse(dateTimeString, FORMATTER);
-        } catch (DateTimeParseException e) {
-            log.warn("Failed to parse datetime: {}", dateTimeString);
-            return null;
+            // 전체 DateTime 형식 시도
+            return LocalDateTime.parse(dateTimeString, DATETIME_FORMATTER);
+        } catch (DateTimeParseException e1) {
+            try {
+                // Date만 있는 형식 시도 (duedate 등)
+                return LocalDate.parse(dateTimeString, DATE_FORMATTER).atStartOfDay();
+            } catch (DateTimeParseException e2) {
+                log.warn("Failed to parse datetime: {}", dateTimeString);
+                return null;
+            }
         }
     }
 }

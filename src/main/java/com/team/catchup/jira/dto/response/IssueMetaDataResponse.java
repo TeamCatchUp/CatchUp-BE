@@ -34,9 +34,6 @@ public record IssueMetaDataResponse (
             @JsonProperty("project")
             Project project,
 
-            @JsonProperty("description")
-            String description,
-
             @JsonProperty("statusCategory")
             StatusCategory statusCategory,
 

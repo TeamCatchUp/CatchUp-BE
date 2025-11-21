@@ -57,7 +57,6 @@ public class JiraIssueDocument implements MeiliSearchDocument {
         IssueMetaDataResponse.Fields fields = jiraIssue.fields();
 
         jiraIssueDocument.setSummary(fields.summary());
-        jiraIssueDocument.setDescription(fields.description());
         jiraIssueDocument.setCreatedAt(fields.issueCreatedAt());
         jiraIssueDocument.setResolutionDate(fields.resolutionDate());
 
