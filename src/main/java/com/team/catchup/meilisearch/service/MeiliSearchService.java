@@ -1,5 +1,6 @@
 package com.team.catchup.meilisearch.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.meilisearch.sdk.*;
 import com.meilisearch.sdk.exceptions.MeilisearchException;
 import com.meilisearch.sdk.json.GsonJsonHandler;
@@ -11,14 +12,14 @@ import com.team.catchup.meilisearch.document.MeiliSearchDocument;
 import com.team.catchup.meilisearch.dto.MeiliSearchQueryResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Retryable;
+import org.springframework.retry.backoff.BackOffInterruptedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -30,14 +31,21 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class MeiliSearchService {
     private final Client meiliSearchClient;
-    private final GsonJsonHandler jsonHandler = new GsonJsonHandler();
+    //private final GsonJsonHandler jsonHandler = new GsonJsonHandler();
+
+    private final ObjectMapper objectMapper;
 
     /**
      * MeiliSearch Document 생성 또는 갱신.
      * 새로운 Document를 생성하고 이미 존재하는 Document라면 덮어쓴다.
+     * 예외가 발생할 경우 최대 3번까지 재시도하며, 재시도 간격은 delay * (multiplie ^ 실패 횟수)이다.
      *
      * @param documents MeiliSearchDocument 구현체의 리스트
      */
+    @Retryable(
+            maxAttempts = 3,
+            backoff = @Backoff(delay = 500, multiplier = 2.0)
+    )
     public void addOrUpdateDocument(List<MeiliSearchDocument> documents) {
         if (documents == null || documents.isEmpty()) return;
 
@@ -46,12 +54,14 @@ public class MeiliSearchService {
 
         groupedByIndex.forEach((indexName, docs) ->{
             try {
-                String documentsJson = jsonHandler.encode(docs);
+                String documentsJson = objectMapper.writeValueAsString(docs);
                 Index index = meiliSearchClient.index(indexName);
-                log.info("MeiliSearchService][addOrUpdateDocument][indexName: {}, docs: {}", indexName, documentsJson);
-                index.addDocuments(documentsJson);
+                log.info("MeiliSearchService][addOrUpdateDocument]indexName: {}, content: {}", indexName, documentsJson);
+                index.addDocuments(documentsJson, "id");
             } catch (MeilisearchException e) {
                 throw new RuntimeException("[" + indexName + "] 인덱스 문서 추가/갱신 실패", e);
+            } catch (Exception e) {
+                throw new RuntimeException("[" + indexName + "] Json 직렬화 실패", e);
             }
         });
     }
