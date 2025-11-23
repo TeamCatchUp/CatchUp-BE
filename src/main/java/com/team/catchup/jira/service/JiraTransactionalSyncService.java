@@ -4,8 +4,10 @@ import com.team.catchup.jira.dto.IssueSyncResult;
 import com.team.catchup.jira.dto.response.*;
 import com.team.catchup.jira.entity.*;
 import com.team.catchup.jira.mapper.*;
+import com.team.catchup.meilisearch.listener.event.SyncedIssueMetaDataEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,6 +27,7 @@ public class JiraTransactionalSyncService {
     private final IssueMetaDataMapper issueMetaDataMapper;
     private final IssueLinkMapper issueLinkMapper;
     private final IssueAttachmentMapper issueAttachmentMapper;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     @Transactional
     public SyncCount syncProjects() {
@@ -170,6 +173,9 @@ public class JiraTransactionalSyncService {
                     .toList();
             totalIssuesFetched += issueEntities.size();
             totalIssuesSaved += jiraSavingService.saveAllIssuesIfNotExists(issueEntities);
+
+            // MeiliSearch Document 변환 및 생성 이벤트 발행
+            applicationEventPublisher.publishEvent(new SyncedIssueMetaDataEvent(response));
 
             // IssueLinks & Attachments
             for (IssueMetaDataResponse.JiraIssue jiraIssue : response.issues()) {

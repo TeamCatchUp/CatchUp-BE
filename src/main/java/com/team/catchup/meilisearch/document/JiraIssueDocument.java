@@ -1,16 +1,23 @@
 package com.team.catchup.meilisearch.document;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.team.catchup.jira.dto.response.IssueMetaDataResponse;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
 /**
  * Jira 이슈 데이터를 저장하는 Document
  */
 @Getter
 @Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class JiraIssueDocument implements MeiliSearchDocument {
     private String id; // 예) BJDD-72
+
+    @JsonIgnore
+    private String projectKey; // 예) BJDD
 
     private String summary;
     private String description;
@@ -24,11 +31,13 @@ public class JiraIssueDocument implements MeiliSearchDocument {
 
 
     @Override
+    @JsonIgnore
     public String getIndexName() {
-        return "jira_issue";
+        return "jira_issue_" + projectKey;
     }
 
     @Override
+    @JsonIgnore
     public String getPrimaryKeyFieldName() {
         return "id";
     }
@@ -44,33 +53,47 @@ public class JiraIssueDocument implements MeiliSearchDocument {
             return null;
         }
 
-        JiraIssueDocument jiraIssueDocument = new JiraIssueDocument();
-
-        // 예) BJDD-72
-        jiraIssueDocument.setId(jiraIssue.key());
-
-        if (jiraIssue.fields() == null){
-            // fields가 없으면 최소한의 정보만 반환
-            return jiraIssueDocument;
-        }
+        String projectKey = parseProjectKey(jiraIssue.key());
 
         IssueMetaDataResponse.Fields fields = jiraIssue.fields();
+        if (fields == null){
+            return JiraIssueDocument.builder()
+                    .id(jiraIssue.key())
+                    .projectKey(projectKey)
+                    .build();
+        }
 
-        jiraIssueDocument.setSummary(fields.summary());
-        jiraIssueDocument.setCreatedAt(fields.issueCreatedAt());
-        jiraIssueDocument.setResolutionDate(fields.resolutionDate());
+        return JiraIssueDocument.builder()
+                .id(jiraIssue.key()) // BJDD-72
+                .projectKey(projectKey) // BJDD
+                .summary(fields.summary())
+                .description(fields.description() != null ? fields.description().getAllText() : "")
+                .createdAt(fields.issueCreatedAt())
+                .resolutionDate(fields.resolutionDate())
+                .assigneeId(extractUserId(fields.assignee()))
+                .creatorId(extractUserId(fields.creator()))
+                .reporterId(extractUserId(fields.reporter()))
+                .build();
+    }
 
-        // Null check
-        jiraIssueDocument.setAssigneeId(
-                fields.assignee() != null ? fields.assignee().id() : null
-        );
-        jiraIssueDocument.setCreatorId(
-                fields.creator() != null ? fields.creator().id() : null
-        );
-        jiraIssueDocument.setReporterId(
-                fields.reporter() != null ? fields.reporter().id() : null
-        );
+    /**
+     * issue key를 입력 받아 project key를 추출한다. issueKey가 유효하지 않은 경우 default를 반환한다.
+     * @param issueKey 예: BJDD-72
+     * @return 예: BJDD
+     */
+    private static String parseProjectKey(String issueKey){
+        if (issueKey != null && issueKey.contains("-")) {
+            return issueKey.split("-")[0];
+        }
+        return "default";
+    }
 
-        return jiraIssueDocument;
+    /**
+     * IssuMetaDataResponse.UserID 객체를 받아 null check 후 id를 반환한다.
+     * @param userId UserID 객체
+     * @return (nullable) Jira account id
+     */
+    private static String extractUserId(IssueMetaDataResponse.UserID userId){
+        return userId != null ? userId.id() : null;
     }
 }
