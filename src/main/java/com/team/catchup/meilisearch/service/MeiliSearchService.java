@@ -31,8 +31,6 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class MeiliSearchService {
     private final Client meiliSearchClient;
-    //private final GsonJsonHandler jsonHandler = new GsonJsonHandler();
-
     private final ObjectMapper objectMapper;
 
     /**
