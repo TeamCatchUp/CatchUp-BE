@@ -26,7 +26,7 @@ public class MeiliSearchEventListener {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleIssueSync(SyncedIssueMetaDataEvent event){
         int issueCount = event.syncedIssueMetaDataResponse().issues().size();
-        log.info("MeiliSearch 동기화 시작. 대상: {} 건", issueCount);
+        log.info("[MeiliSearch] 동기화 시작 - Total: {}", issueCount);
 
         try {
             // Jira API 응답 결과를 Document 형식으로 변환
@@ -37,7 +37,7 @@ public class MeiliSearchEventListener {
             // Document 생성. @Retryable로 실패 시 최대 3번까지 재시도.
             meiliSearchService.addOrUpdateDocument(documentsToSave);
 
-            log.info("MeiliSearch 동기화 완료. 대상: {} 건", issueCount);
+            log.info("[MeiliSearch] 동기화 완료 - Total: {}", issueCount);
 
         } catch (MeilisearchException e){
             log.error("[handleIssueSync] MeiliSearch 연동 실패 (서버/통신)", e);

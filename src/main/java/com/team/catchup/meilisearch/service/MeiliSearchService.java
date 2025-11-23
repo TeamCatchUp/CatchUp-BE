@@ -54,10 +54,15 @@ public class MeiliSearchService {
 
         groupedByIndex.forEach((indexName, docs) ->{
             try {
+                String primaryKey = docs.get(0).getPrimaryKeyFieldName();
+
                 String documentsJson = objectMapper.writeValueAsString(docs);
                 Index index = meiliSearchClient.index(indexName);
-                log.info("MeiliSearchService][addOrUpdateDocument]indexName: {}, content: {}", indexName, documentsJson);
-                index.addDocuments(documentsJson, "id");
+
+                log.info("[MeiliSearch Document 생성] indexName: {}", indexName);
+
+                index.addDocuments(documentsJson, primaryKey);
+
             } catch (MeilisearchException e) {
                 throw new RuntimeException("[" + indexName + "] 인덱스 문서 추가/갱신 실패", e);
             } catch (Exception e) {
