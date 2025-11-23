@@ -37,6 +37,7 @@ services:
     depends_on:
       - db
       - meilisearch
+    restart: on-failure
 
   meilisearch:
     container_name: meilisearch
