@@ -68,7 +68,10 @@ public record IssueMetaDataResponse (
             List<IssueLink> issueLinks,
 
             @JsonProperty("attachment")
-            List<IssueAttachment> attachments
+            List<IssueAttachment> attachments,
+
+            @JsonProperty("description")
+            Description description
     ) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -181,4 +184,52 @@ public record IssueMetaDataResponse (
             @JsonProperty("thumbnail")
             String thumbnail
     ) {}
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record Description(
+            @JsonProperty("type")
+            String type,
+
+            @JsonProperty("content")
+            List<DescriptionContent> content
+    ){
+        public String getAllText() {
+            if (content == null || content.isEmpty()){
+                return "";
+            }
+            StringBuilder sb = new StringBuilder();
+            for (DescriptionContent dc : content) {
+                dc.appendTextRecursively(sb);
+            }
+            return sb.toString().trim();
+        }
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record DescriptionContent(
+            @JsonProperty("type")
+            String type,
+
+            @JsonProperty("text")
+            String text,
+
+            @JsonProperty("content")
+            List<DescriptionContent> content
+    ){
+        public void appendTextRecursively (StringBuilder sb) {
+            if (this.text != null && !this.text.isBlank()) {
+                sb.append(this.text);
+            }
+
+            if ("paragraph".equals(this.type)) {
+                sb.append("\n");
+            }
+
+            if (this.content != null && !this.content.isEmpty()){
+                for (DescriptionContent child : this.content){
+                    child.appendTextRecursively(sb);
+                }
+            }
+        }
+    }
 }
