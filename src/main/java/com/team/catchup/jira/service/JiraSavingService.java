@@ -99,7 +99,7 @@ public class JiraSavingService {
             issueMetaDataRepository.save(entity);
             savedCount++;
         }
-        log.info("[BATCH SAVE] Issue 저장 완료 - Saved: {}, Total: {}", savedCount, entities.size());
+        log.info("[JIRA][BATCH SAVE] Issue 저장 완료 - Saved: {}, Total: {}", savedCount, entities.size());
         return savedCount;
     }
 

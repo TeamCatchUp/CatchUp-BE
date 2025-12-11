@@ -157,7 +157,7 @@ public class JiraTransactionalSyncService {
 
         while (hasMore) {
             IssueMetaDataResponse response = jiraApiService
-                    .fetchIssues(projectKey, nextPageToken, 10, true)
+                    .fetchIssues(projectKey, nextPageToken, 1000, true)
                     .block();
 
             if (response == null || response.issues() == null || response.issues().isEmpty()) {

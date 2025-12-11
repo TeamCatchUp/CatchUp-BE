@@ -1,5 +1,7 @@
-package com.team.catchup.jira.config;
+package com.team.catchup.config;
 
+import com.team.catchup.jira.config.JiraProperties;
+import com.team.catchup.notion.config.NotionProperties;
 import io.netty.channel.ChannelOption;
 import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.handler.timeout.WriteTimeoutHandler;
@@ -24,11 +26,13 @@ import java.util.concurrent.TimeUnit;
 @Configuration
 @RequiredArgsConstructor
 @Slf4j
-@EnableConfigurationProperties(JiraProperties.class)
+@EnableConfigurationProperties({JiraProperties.class, NotionProperties.class})
 public class WebClientConfig {
 
     private final JiraProperties jiraProperties;
+    private final NotionProperties notionProperties;
 
+    // Jira WebClient
     @Bean
     public WebClient jiraWebClient() {
         log.info("=== Jira Properties 확인 ===");
@@ -43,18 +47,14 @@ public class WebClientConfig {
         // HTTP Connection Pool 설정
         // 현재 설정 100 커넥션, 타임아웃 45초 -> 테스트해보고 재설정
         // 타임아웃 : 커넥션 풀에 있는 커넥션을 잡는것을 대기하는 시간
-        ConnectionProvider connectionProvider = ConnectionProvider.builder("jira-connection-pool")
-                .maxConnections(jiraProperties.getConnection().getMaxConnections())
-                .pendingAcquireTimeout(Duration.ofMillis(jiraProperties.getConnection().getPendingAcquireTimeout()))
-                .build();
-
-        // 커넥션 타임아웃 : TCP 연결을 잡는데 대기하는 시간
-        HttpClient httpClient = HttpClient.create(connectionProvider)
-                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, jiraProperties.getTimeout().getConnect())
-                .doOnConnected(conn -> conn
-                        .addHandlerLast(new ReadTimeoutHandler(jiraProperties.getTimeout().getRead(), TimeUnit.MILLISECONDS))
-                        .addHandlerLast(new WriteTimeoutHandler(jiraProperties.getTimeout().getWrite(), TimeUnit.MILLISECONDS))
-                );
+        HttpClient httpClient = createHttpClient(
+                "jira-connection-pool",
+                jiraProperties.getConnection().getMaxConnections(),
+                jiraProperties.getConnection().getPendingAcquireTimeout(),
+                jiraProperties.getTimeout().getConnect(),
+                jiraProperties.getTimeout().getRead(),
+                jiraProperties.getTimeout().getWrite()
+        );
 
         return WebClient.builder()
                 .baseUrl(jiraProperties.getBaseUrl())
@@ -62,6 +62,32 @@ public class WebClientConfig {
                 .defaultHeader(HttpHeaders.AUTHORIZATION, "Basic " + encodedCredentials)  // ← 수정
                 .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                 .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(jiraProperties.getMemory().getMaxInMemorySize()))
+                .filter(logRequest())
+                .filter(logResponse())
+                .build();
+    }
+    //==================================================================================================================
+    // Notion WebClient
+    @Bean
+    public WebClient notionWebClient() {
+
+        HttpClient httpClient = createHttpClient(
+                "notion-connection-pool",
+                notionProperties.getConnection().getMaxConnections(),
+                notionProperties.getConnection().getPendingAcquireTimeout(),
+                notionProperties.getTimeout().getConnect(),
+                notionProperties.getTimeout().getRead(),
+                notionProperties.getTimeout().getWrite()
+        );
+
+        return WebClient.builder()
+                .baseUrl(notionProperties.getBaseUrl())
+                .clientConnector(new ReactorClientHttpConnector(httpClient))
+                .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + notionProperties.getApiKey())
+                .defaultHeader("Notion-Version", notionProperties.getVersion())
+                .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .codecs(configurer -> configurer.defaultCodecs()
+                        .maxInMemorySize(notionProperties.getMemory().getMaxInMemorySize()))
                 .filter(logRequest())
                 .filter(logResponse())
                 .build();
@@ -82,5 +108,21 @@ public class WebClientConfig {
             log.info("[Response] {}", clientResponse.statusCode());
             return Mono.just(clientResponse);
         });
+    }
+
+    // HTTP Client 생성 메서드
+    private HttpClient createHttpClient(String poolName, Integer maxConnections, Integer acquireTimeout,
+                                        Integer connectionTimeout, Integer readTimeout, Integer writeTimeout) {
+        ConnectionProvider connectionProvider = ConnectionProvider.builder(poolName)
+                .maxConnections(maxConnections)
+                .pendingAcquireTimeout(Duration.ofMillis(acquireTimeout))
+                .build();
+
+        return HttpClient.create(connectionProvider)
+                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, connectionTimeout)
+                .doOnConnected(conn -> conn
+                        .addHandlerLast(new ReadTimeoutHandler(readTimeout, TimeUnit.MILLISECONDS))
+                        .addHandlerLast(new WriteTimeoutHandler(writeTimeout, TimeUnit.MILLISECONDS))
+                );
     }
 }

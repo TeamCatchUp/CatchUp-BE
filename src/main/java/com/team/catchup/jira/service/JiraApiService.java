@@ -4,8 +4,8 @@ import com.team.catchup.jira.dto.response.IssueMetaDataResponse;
 import com.team.catchup.jira.dto.response.IssueTypeResponse;
 import com.team.catchup.jira.dto.response.JiraProjectResponse;
 import com.team.catchup.jira.dto.response.JiraUserResponse;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
@@ -13,11 +13,14 @@ import reactor.core.publisher.Mono;
 import java.util.List;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class JiraApiService {
 
     private final WebClient jiraWebClient;
+
+    public JiraApiService(@Qualifier("jiraWebClient") WebClient jiraWebClient) {
+        this.jiraWebClient = jiraWebClient;
+    }
 
     // TODO : Meilisearch Document 생성 시 필요한 요소들 확정되면 JQL 쿼리 수정
     public Mono<IssueMetaDataResponse> fetchIssues(String projectKey, String nextPageToken, Integer maxResults, boolean fetchAllFields) {
