@@ -1,9 +1,6 @@
 package com.team.catchup.notion.entity;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -27,11 +24,13 @@ public class NotionPage {
     @Column(name = "url", nullable = false)
     private String url;
 
-    @Column(name = "created_by_id")
-    private String createdBy;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by_id")
+    private NotionUser createdBy;
 
-    @Column(name = "last_edited_by_id")
-    private String lastEditedBy;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "last_edited_by_id")
+    private NotionUser lastEditedBy;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
@@ -51,7 +50,7 @@ public class NotionPage {
     private String parentType;
 
     @Builder
-    NotionPage(String pageId, String title, String url, String createdBy, String lastEditedBy,
+    NotionPage(String pageId, String title, String url, NotionUser createdBy, NotionUser lastEditedBy,
                LocalDateTime createdAt, LocalDateTime lastEditedAt, String parentId, String parentType) {
         this.pageId = pageId;
         this.title = title;

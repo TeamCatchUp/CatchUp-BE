@@ -1,6 +1,7 @@
 package com.team.catchup.notion.service;
 
 import com.team.catchup.notion.dto.NotionSearchResponse;
+import com.team.catchup.notion.dto.NotionUserResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
@@ -27,7 +28,12 @@ public class NotionApiService {
         return fetchPagesRecursively(null, new ArrayList<>());
     }
 
-    public Mono<List<NotionSearchResponse.NotionPageResult>> fetchPagesRecursively(
+    public Mono<List<NotionUserResponse.NotionUserResult>> fetchAllUsers() {
+        log.info("[NOTION] User Search Started");
+        return fetchUsersRecursively(null, new ArrayList<>());
+    }
+
+    private Mono<List<NotionSearchResponse.NotionPageResult>> fetchPagesRecursively(
             String startCursor, List<NotionSearchResponse.NotionPageResult> accumulatedPages
     ) {
         // Notion API 호출 제한 = 1초당 3회 -> 0.34초에 1회 호출하도록 딜레이 걸어주기
@@ -44,11 +50,39 @@ public class NotionApiService {
                             response.nextCursor());
 
                     if (response.hasMore() && response.nextCursor() != null) {
-                        log.debug("[NOTION] Next Cursor Exists -> Requesting Next Page");
+                        log.debug("[NOTION] Next Cursor Exists -> Requesting Next Page Batch");
                         return fetchPagesRecursively(response.nextCursor(), accumulatedPages);
                     } else {
                         log.info("[NOTION] Page Search Completed | Total Page: {}", accumulatedPages.size());
                         return Mono.just(accumulatedPages);
+                    }
+                });
+    }
+
+    private Mono<List<NotionUserResponse.NotionUserResult>> fetchUsersRecursively(
+            String startCursor, List<NotionUserResponse.NotionUserResult> accumulatedUsers) {
+
+        return Mono.delay(Duration.ofMillis(340))
+                .then(fetchUserBatch(startCursor))
+                .flatMap(response -> {
+                    if (response.results() != null) {
+                        List<NotionUserResponse.NotionUserResult> personUsers = response.results().stream()
+                                .filter(user -> "person".equals(user.type()))
+                                .toList();
+                        accumulatedUsers.addAll(personUsers);
+                    }
+
+                    log.info("[Notion Batch] 가져온 개수: {}, hasMore: {}, nextCursor: {}",
+                            response.results() != null ? response.results().size() : 0,
+                            response.hasMore(),
+                            response.nextCursor());
+
+                    if(response.hasMore() && response.nextCursor() != null) {
+                        log.debug("[NOTION] Next Cursor Exists -> Requesting Next User Batch");
+                        return fetchUsersRecursively(response.nextCursor(), accumulatedUsers);
+                    } else {
+                        log.info("[NOTION] User Search Completed | Total Page: {}", accumulatedUsers.size());
+                        return Mono.just(accumulatedUsers);
                     }
                 });
     }
@@ -76,5 +110,19 @@ public class NotionApiService {
                 .retrieve()
                 .bodyToMono(NotionSearchResponse.class)
                 .doOnError(error -> log.error("[NOTION] Page Full Sync Failed", error));
+    }
+
+    private Mono<NotionUserResponse> fetchUserBatch(String startCursor) {
+        return notionWebClient.get()
+                .uri(uriBuilder ->{
+                    var builder = uriBuilder.path("v1/users");
+                    if(startCursor != null) {
+                        builder.queryParam("start_cursor", startCursor);
+                    }
+                    return builder.build();
+                })
+                .retrieve()
+                .bodyToMono(NotionUserResponse.class)
+                .doOnError(error -> log.error("[NOTION] Page Fetch Failed", error));
     }
 }

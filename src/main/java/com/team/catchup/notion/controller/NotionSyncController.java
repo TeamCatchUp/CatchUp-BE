@@ -27,4 +27,18 @@ public class NotionSyncController {
         NotionSyncResult result = notionSyncService.syncPageMetadata();
         return ResponseEntity.ok(result);
     }
+
+    @PostMapping("/users")
+    public ResponseEntity<NotionSyncResult> syncUsers() {
+        log.info("[API] Notion User Sync 요청");
+        NotionSyncResult result = notionSyncService.syncUsers();
+        return ResponseEntity.ok(result);
+    }
+
+@PostMapping("/full")
+public ResponseEntity<NotionSyncResult> fullSync() {
+    log.info("[API] Notion Full Sync 요청");
+    NotionSyncResult result = notionSyncService.syncAll();
+    return ResponseEntity.ok(result);
+}
 }

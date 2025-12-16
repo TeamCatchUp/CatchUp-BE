@@ -7,6 +7,7 @@ import lombok.Getter;
 @Builder
 public class NotionSyncResult {
 
+    private final NotionSyncCount userMetaData;
     private final NotionSyncCount pageMetaData;
 
     private final boolean success;

@@ -3,6 +3,8 @@ package com.team.catchup.notion.mapper;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.team.catchup.notion.dto.NotionSearchResponse;
 import com.team.catchup.notion.entity.NotionPage;
+import com.team.catchup.notion.entity.NotionUser;
+import com.team.catchup.notion.repository.NotionUserRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -16,6 +18,11 @@ public class NotionPageMapper {
 
     private static final DateTimeFormatter NOTION_DATE_FORMATTER =
             DateTimeFormatter.ISO_DATE_TIME;
+    private final NotionUserRepository notionUserRepository;
+
+    public NotionPageMapper(NotionUserRepository notionUserRepository) {
+        this.notionUserRepository = notionUserRepository;
+    }
 
     public NotionPage toEntity(NotionSearchResponse.NotionPageResult result) {
         String title = extractTitle(result.properties());
@@ -36,8 +43,15 @@ public class NotionPageMapper {
             }
         }
 
-        String createdBy = (result.createdBy() != null) ? result.createdBy().id() : null;
-        String lastEditedBy = (result.lastEditedBy() != null) ? result.lastEditedBy().id() : null;
+        NotionUser createdBy = null;
+        if (result.createdBy() != null && result.createdBy().id() != null) {
+            createdBy = notionUserRepository.findById(result.createdBy().id()).orElse(null);
+        }
+
+        NotionUser lastEditedBy = null;
+        if (result.lastEditedBy() != null && result.lastEditedBy().id() != null) {
+            lastEditedBy = notionUserRepository.findById(result.lastEditedBy().id()).orElse(null);
+        }
 
         return NotionPage.builder()
                 .pageId(result.id())
@@ -73,7 +87,7 @@ public class NotionPageMapper {
                         }
                     }
 
-                    return fullTitle.length() > 0 ? fullTitle.toString() : "Untitled";
+                    return !fullTitle.isEmpty() ? fullTitle.toString() : "Untitled";
                 }
             }
         }
