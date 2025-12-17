@@ -7,14 +7,13 @@ import com.team.catchup.jira.mapper.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class JiraTransactionalSyncService {
+public class JiraProcessor {
 
     private final JiraApiService jiraApiService;
     private final JiraSavingService jiraSavingService;
@@ -26,7 +25,6 @@ public class JiraTransactionalSyncService {
     private final IssueLinkMapper issueLinkMapper;
     private final IssueAttachmentMapper issueAttachmentMapper;
 
-    @Transactional
     public SyncCount syncProjects() {
         log.info("[JIRA][PROJECT SYNC] STARTED");
 
@@ -62,7 +60,6 @@ public class JiraTransactionalSyncService {
         return SyncCount.of(totalFetched, totalSaved);
     }
 
-    @Transactional
     public SyncCount syncUsers() {
         log.info("[JIRA][USER SYNC] STARTED");
 
@@ -99,7 +96,6 @@ public class JiraTransactionalSyncService {
         return SyncCount.of(totalFetched, totalSaved);
     }
 
-    @Transactional
     public SyncCount syncIssueTypes() {
         log.info("[JIRA][ISSUE TYPE SYNC] STARTED");
 
@@ -122,7 +118,6 @@ public class JiraTransactionalSyncService {
         return SyncCount.of(entities.size(), totalSaved);
     }
 
-    @Transactional
     public ProjectSyncResult syncSingleProjectIssue(String projectKey) {
         log.info("[JIRA][PROJECT ISSUE SYNC] projectKey: {}", projectKey);
 

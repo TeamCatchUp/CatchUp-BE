@@ -1,7 +1,6 @@
 package com.team.catchup.jira.controller;
 
 import com.team.catchup.jira.dto.SyncStep;
-import com.team.catchup.jira.dto.response.FullSyncResult;
 import com.team.catchup.jira.service.JiraSyncService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,10 +22,10 @@ public class JiraSyncController {
      * POST /api/jira/sync/full
      */
     @PostMapping("/full")
-    public ResponseEntity<FullSyncResult> fullSync() {
+    public ResponseEntity<String> fullSync() {
         log.info("[API] Full Sync 요청");
-        FullSyncResult result = jiraSyncService.fullSync();
-        return ResponseEntity.ok(result);
+        jiraSyncService.fullSync();
+        return ResponseEntity.ok("Jira Full Sync Process Started at Background");
     }
 
     /**
@@ -34,13 +33,13 @@ public class JiraSyncController {
      * POST /api/jira/sync/retry?startFrom=USERS&projectKeys=PROJ-A,PROJ-B
      */
     @PostMapping("/retry")
-    public ResponseEntity<FullSyncResult> retrySync(
+    public ResponseEntity<String> retrySync(
             @RequestParam(name = "startFrom") SyncStep startFrom,
             @RequestParam(name = "projectKeys", required = false) List<String> projectKeys
     ) {
         log.info("[API] Retry Sync 요청 - StartFrom: {}, ProjectKeys: {}", startFrom, projectKeys);
-        FullSyncResult result = jiraSyncService.fullSyncFrom(startFrom, projectKeys);
-        return ResponseEntity.ok(result);
+        jiraSyncService.fullSyncFrom(startFrom, projectKeys);
+        return ResponseEntity.ok("Jira Retry Sync Process Started at Background");
     }
 
     /**
@@ -49,11 +48,11 @@ public class JiraSyncController {
      * Body: ["PROJ-A", "PROJ-B"]
      */
     @PostMapping("/retry/projects")
-    public ResponseEntity<FullSyncResult> retryFailedProjects(
+    public ResponseEntity<String> retryFailedProjects(
             @RequestBody List<String> failedProjectKeys
     ) {
         log.info("[API] Retry Failed Projects 요청 - Projects: {}", failedProjectKeys);
-        FullSyncResult result = jiraSyncService.retryFailedProjects(failedProjectKeys);
-        return ResponseEntity.ok(result);
+        jiraSyncService.retryFailedProjects(failedProjectKeys);
+        return ResponseEntity.ok("Jira Retry Failed Projects Process Started at Background");
     }
 }

@@ -1,127 +1,89 @@
 package com.team.catchup.jira.service;
 
 import com.team.catchup.jira.dto.SyncStep;
-import com.team.catchup.jira.dto.response.*;
-import com.team.catchup.jira.entity.*;
-import com.team.catchup.jira.mapper.*;
-import com.team.catchup.jira.repository.*;
+import com.team.catchup.jira.dto.response.SyncCount;
+import com.team.catchup.jira.entity.JiraProject;
+import com.team.catchup.jira.repository.JiraProjectRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
-import java.util.*;
+import java.util.List;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class JiraSyncService {
 
-    private final JiraTransactionalSyncService transactionalSyncService;
+    private final JiraProcessor transactionalSyncService;
     private final JiraProjectRepository jiraProjectRepository;
 
-    public FullSyncResult fullSync() {
-        return fullSyncFrom(SyncStep.PROJECTS, null);
+    @Async
+    public void fullSync() {
+        fullSyncFrom(SyncStep.PROJECTS, null);
     }
 
-    public FullSyncResult fullSyncFrom(SyncStep startFrom, List<String> targetProjectKeys) {
-        log.info("[JIRA][FULL SYNC] startFrom: {} | targetProjects: {}",
-                startFrom, targetProjectKeys != null ? targetProjectKeys : "All");
-
-        FullSyncResult.FullSyncResultBuilder resultBuilder = FullSyncResult.builder();
-
-        SyncStep currentStep = startFrom;
-        SyncStep lastCompletedStep = getPreviousStep(startFrom);
+    @Async
+    public void fullSyncFrom(SyncStep startFrom, List<String> targetProjectKeys) {
+        log.info("[JIRA][FULL SYNC] Background Process Started | startFrom: {}", startFrom);
+        long startTime = System.currentTimeMillis();
 
         try {
             // Jira Projects
             if (shouldExecute(startFrom, SyncStep.PROJECTS)) {
-                currentStep = SyncStep.PROJECTS;
                 SyncCount count = transactionalSyncService.syncProjects();
-                resultBuilder.projects(count);
-                lastCompletedStep = SyncStep.PROJECTS;
+                log.info("[JIRA][FULL SYNC] Projects Completed | Total: {}, Saved: {}", count.getTotal(), count.getSaved());
             }
 
             // Jira Users
             if (shouldExecute(startFrom, SyncStep.USERS)) {
-                currentStep = SyncStep.USERS;
                 SyncCount count = transactionalSyncService.syncUsers();
-                resultBuilder.users(count);
-                lastCompletedStep = SyncStep.USERS;
+                log.info("[JIRA][FULL SYNC] Users Completed | Total: {}, Saved: {}", count.getTotal(), count.getSaved());
             }
 
             // Issue Types
             if (shouldExecute(startFrom, SyncStep.ISSUE_TYPES)) {
-                currentStep = SyncStep.ISSUE_TYPES;
                 SyncCount count = transactionalSyncService.syncIssueTypes();
-                resultBuilder.issuesTypes(count);
-                lastCompletedStep = SyncStep.ISSUE_TYPES;
+                log.info("[JIRA][FULL SYNC] Issue Types Completed | Total: {}, Saved: {}", count.getTotal(), count.getSaved());
             }
 
             // Project Issues
             if (shouldExecute(startFrom, SyncStep.PROJECT_ISSUES)) {
-                currentStep = SyncStep.PROJECT_ISSUES;
-
                 List<String> projectKeys = resolveTargetProjectKeys(targetProjectKeys);
-                Map<String, ProjectSyncResult> projectResults = syncAllProjectIssues(projectKeys);
+                log.info("[JIRA][FULL SYNC] Issue Sync Started for {} projects", projectKeys.size());
 
-                resultBuilder.projectSyncResults(projectResults);
-
-                List<String> failedKeys = projectResults.entrySet().stream()
-                        .filter(e -> !e.getValue().isSuccess())
-                        .map(Map.Entry::getKey)
-                        .toList();
-
-                resultBuilder.failedProjectKeys(failedKeys);
-                lastCompletedStep = SyncStep.PROJECT_ISSUES;
+                for (String projectKey : projectKeys) {
+                    transactionalSyncService.syncSingleProjectIssue(projectKey);
+                }
             }
 
-            resultBuilder.lastCompletedStep(SyncStep.COMPLETED);
-            log.info("[JIRA][FULL SYNC] SUCCESS");
+            long duration = System.currentTimeMillis() - startTime;
+            log.info("[JIRA][FULL SYNC] All Steps Completed - Time Used: {}ms", duration);
 
         } catch (Exception e) {
-            log.error("[JIRA][FULL SYNC] FAILED - Failed Step: {}", currentStep, e);
-            resultBuilder
-                    .lastCompletedStep(lastCompletedStep)
-                    .failedStep(currentStep)
-                    .errorMessage(e.getMessage());
+            log.error("[JIRA][FULL SYNC] FAILED", e);
         }
-
-        return resultBuilder.build();
     }
 
-    public FullSyncResult retryFailedProjects(List<String> failedProjectKeys) {
-        log.info("[JIRA][RETRY FAILED PROJECTS] projectKeys: {}", failedProjectKeys);
+    @Async
+    public void retryFailedProjects(List<String> failedProjectKeys) {
+        log.info("[JIRA][RETRY] Retrying failed projects: {}", failedProjectKeys);
 
-        Map<String, ProjectSyncResult> projectResults = syncAllProjectIssues(failedProjectKeys);
-
-        List<String> failedKeys = projectResults.entrySet().stream()
-                .filter(e -> !e.getValue().isSuccess())
-                .map(Map.Entry::getKey)
-                .toList();
-
-        return FullSyncResult.builder()
-                .lastCompletedStep(SyncStep.COMPLETED)
-                .projectSyncResults(projectResults)
-                .failedProjectKeys(failedKeys)
-                .build();
-    }
-
-    private Map<String, ProjectSyncResult> syncAllProjectIssues(List<String> projectKeys) {
-        Map<String, ProjectSyncResult> results = new HashMap<>();
-
-        for (String projectKey : projectKeys) {
-            ProjectSyncResult result = transactionalSyncService.syncSingleProjectIssue(projectKey);
-            results.put(projectKey, result);
+        for (String projectKey : failedProjectKeys) {
+            try {
+                transactionalSyncService.syncSingleProjectIssue(projectKey);
+            } catch (Exception e) {
+                log.error("[JIRA][RETRY] Project {} Failed again", projectKey, e);
+            }
         }
-
-        return results;
+        log.info("[JIRA][RETRY] Completed");
     }
 
     private List<String> resolveTargetProjectKeys(List<String> targetProjectKeys) {
         if (targetProjectKeys != null && !targetProjectKeys.isEmpty()) {
             return targetProjectKeys;
         }
-
         return jiraProjectRepository.findAll().stream()
                 .map(JiraProject::getProjectKey)
                 .toList();
@@ -129,11 +91,5 @@ public class JiraSyncService {
 
     private boolean shouldExecute(SyncStep startFrom, SyncStep target) {
         return startFrom.ordinal() <= target.ordinal();
-    }
-
-    private SyncStep getPreviousStep(SyncStep step) {
-        int ordinal = step.ordinal();
-        if (ordinal == 0) return null;
-        return SyncStep.values()[ordinal - 1];
     }
 }
