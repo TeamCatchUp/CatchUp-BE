@@ -1,5 +1,6 @@
 package com.team.catchup.notion.service;
 
+import com.team.catchup.notion.dto.NotionRabbitRequest;
 import com.team.catchup.notion.dto.NotionSearchResponse;
 import com.team.catchup.notion.dto.NotionSyncResult;
 import com.team.catchup.notion.dto.NotionUserResponse;
@@ -10,6 +11,7 @@ import com.team.catchup.notion.mapper.NotionUserMapper;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -18,6 +20,9 @@ import java.util.List;
 @RequiredArgsConstructor
 @Slf4j
 public class NotionTransactionalService {
+
+    private final RabbitTemplate rabbitTemplate;
+    private static final String NOTION_SYNC_QUEUE = "notion_sync_queue";
 
     private final NotionApiService notionApiService;
     private final NotionSavingSevice notionSavingSevice;
@@ -45,9 +50,26 @@ public class NotionTransactionalService {
                 .toList();
 
         int savedCount = notionSavingSevice.saveAllPages(pages);
-
         log.info("[NOTION][Page] Page Metadata Save Completed - Pages :{}", savedCount);
+
+        publishSyncMessages(pages);
+
         return NotionSyncResult.NotionSyncCount.of(totalFetched, savedCount);
+    }
+
+    private void publishSyncMessages(List<NotionPage> pages) {
+        try{
+            log.info("[NOTION][MQ] Publishing {} pages to RabbitMQ", pages.size());
+
+            for(NotionPage page : pages) {
+                NotionRabbitRequest request = NotionRabbitRequest.from(page);
+
+                rabbitTemplate.convertAndSend(NOTION_SYNC_QUEUE, request);
+            }
+            log.info("[NOTION][MQ] Published {} pages to RabbitMQ", pages.size());
+        } catch(Exception e){
+            log.error("[NOTION][MQ] Publishing failed", e);
+        }
     }
 
     @Transactional
