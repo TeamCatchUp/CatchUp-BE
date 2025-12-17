@@ -1,6 +1,5 @@
 package com.team.catchup.notion.controller;
 
-import com.team.catchup.notion.dto.NotionSyncResult;
 import com.team.catchup.notion.service.NotionSyncService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,23 +21,23 @@ public class NotionSyncController {
      * * POST /api/notion/sync/metadata
      */
     @PostMapping("/metadata")
-    public ResponseEntity<NotionSyncResult> syncPageMetadata() {
+    public ResponseEntity<String> syncPageMetadata() {
         log.info("[API] Notion Metadata Sync 요청");
-        NotionSyncResult result = notionSyncService.syncPageMetadata();
-        return ResponseEntity.ok(result);
+        notionSyncService.syncPageMetadata();
+        return ResponseEntity.ok("Notion Page Sync Process Started at Background");
     }
 
     @PostMapping("/users")
-    public ResponseEntity<NotionSyncResult> syncUsers() {
+    public ResponseEntity<String> syncUsers() {
         log.info("[API] Notion User Sync 요청");
-        NotionSyncResult result = notionSyncService.syncUsers();
-        return ResponseEntity.ok(result);
+        notionSyncService.syncUsers();
+        return ResponseEntity.ok("Notion User Sync Process Started at Background");
     }
 
-@PostMapping("/full")
-public ResponseEntity<NotionSyncResult> fullSync() {
-    log.info("[API] Notion Full Sync 요청");
-    NotionSyncResult result = notionSyncService.syncAll();
-    return ResponseEntity.ok(result);
-}
+    @PostMapping("/full")
+    public ResponseEntity<String> fullSync() {
+        log.info("[API] Notion Full Sync 요청");
+        notionSyncService.syncAll();
+        return ResponseEntity.ok("Notion Full Sync Started at Background");
+    }
 }

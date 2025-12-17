@@ -1,8 +1,9 @@
 package com.team.catchup.notion.service;
 
-import com.team.catchup.notion.dto.NotionSyncResult;
+import com.team.catchup.notion.dto.NotionSyncCount;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -10,65 +11,58 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class NotionSyncService {
 
-    private final NotionTransactionalService notionTransactionalService;
+    private final NotionProcessor notionProcessor;
 
-    public NotionSyncResult syncAll() {
+    @Async
+    public void syncAll() {
         log.info("[NOTION][FULL SYNC] Full Sync Started");
+        long startTime = System.currentTimeMillis();
 
         try {
             // 1. User
-            NotionSyncResult.NotionSyncCount userCount = notionTransactionalService.syncUsers();
+            NotionSyncCount userCount = notionProcessor.syncUsers();
             log.info("[NOTION][FULL SYNC] User Sync Completed - Total: {}, Saved: {}",
                     userCount.getTotalFetched(), userCount.getSaved());
 
             // 2. Page
-            NotionSyncResult.NotionSyncCount pageCount = notionTransactionalService.syncPageMetadata();
+            NotionSyncCount pageCount = notionProcessor.syncPageMetadata();
             log.info("[NOTION][FULL SYNC] Page Sync Completed - Total: {}, Saved: {}",
                     pageCount.getTotalFetched(), pageCount.getSaved());
 
-            return NotionSyncResult.builder()
-                    .success(true)
-                    .userMetaData(userCount)
-                    .pageMetaData(pageCount)
-                    .build();
+            long duration = System.currentTimeMillis() - startTime;
+            log.info("[NOTION][FULL SYNC] Sync Completed - Duration: {}", duration);
         } catch (Exception e) {
             log.error("[NOTION][ALL] Full Sync Failed", e);
-            return NotionSyncResult.failure(e.getMessage());
         }
     }
 
-    public NotionSyncResult syncPageMetadata() {
+    @Async
+    public void syncPageMetadata() {
         log.info("[NOTION][PAGE] Page Metadata Sync Started");
 
         try {
-            NotionSyncResult.NotionSyncCount syncCount = notionTransactionalService.syncPageMetadata();
+            NotionSyncCount syncCount = notionProcessor.syncPageMetadata();
 
-            log.info("=== [Notion Metadata Sync] SUCCESS - Total: {}, Saved: {} ==="
+            log.info("[Notion Metadata Sync] SUCCESS - Total: {}, Saved: {} ==="
                     ,syncCount.getTotalFetched(), syncCount.getSaved());
 
-            return NotionSyncResult.success(syncCount);
         } catch (Exception e) {
             log.error("[NOTION][PAGE] Page Metadata Sync Failed", e);
-            return NotionSyncResult.failure(e.getMessage());
         }
     }
 
-    public NotionSyncResult syncUsers() {
+    @Async
+    public void syncUsers() {
         log.info("[NOTION][USER] User Sync Started");
 
         try{
-            NotionSyncResult.NotionSyncCount syncCount = notionTransactionalService.syncUsers();
+            NotionSyncCount syncCount = notionProcessor.syncUsers();
 
             log.info("=== [Notion User Sync] SUCCESS - Total: {}, Saved: {} ===",
                     syncCount.getTotalFetched(), syncCount.getSaved());
 
-            return NotionSyncResult.builder()
-                    .success(true)
-                    .userMetaData(syncCount)
-                    .build();
         } catch (Exception e) {
             log.error("[NOTION][USER] User Sync Failed", e);
-            return NotionSyncResult.failure(e.getMessage());
         }
     }
 }

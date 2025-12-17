@@ -15,7 +15,7 @@ import java.util.List;
 @RequiredArgsConstructor
 @Transactional
 @Slf4j
-public class NotionSavingSevice {
+public class NotionPersistenceService {
 
     private final NotionPageRepository notionPageRepository;
     private final NotionUserRepository notionUserRepository;
