@@ -1,10 +1,11 @@
 package com.team.catchup.notion.mapper;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.team.catchup.notion.dto.NotionSearchResponse;
+import com.team.catchup.notion.dto.external.NotionSearchApiResponse;
 import com.team.catchup.notion.entity.NotionPage;
 import com.team.catchup.notion.entity.NotionUser;
 import com.team.catchup.notion.repository.NotionUserRepository;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -14,56 +15,39 @@ import java.util.Map;
 
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class NotionPageMapper {
 
     private static final DateTimeFormatter NOTION_DATE_FORMATTER =
             DateTimeFormatter.ISO_DATE_TIME;
     private final NotionUserRepository notionUserRepository;
 
-    public NotionPageMapper(NotionUserRepository notionUserRepository) {
-        this.notionUserRepository = notionUserRepository;
-    }
+    public NotionPage toEntity(NotionSearchApiResponse.NotionPageResult result) {
+        try {
+            String title = extractTitle(result.properties());
+            String parentId = extractParentId(result.parent());
+            String parentType = result.parent() != null
+                    ? result.parent().type()
+                    : null;
 
-    public NotionPage toEntity(NotionSearchResponse.NotionPageResult result) {
-        String title = extractTitle(result.properties());
+            NotionUser createdBy = findUser(result.createdBy());
+            NotionUser lastEditedBy = findUser(result.lastEditedBy());
 
-        String parentId = null;
-        String parentType = null;
-
-        if(result.parent() != null) {
-            parentType = result.parent().type();
-            if("page_id".equals(parentType)) {
-                parentId = result.parent().pageId();
-            } else if("database_id".equals(parentType)) {
-                parentId = result.parent().databaseId();
-            } else if("data_source_id".equals(parentType)) {
-                parentId = result.parent().dataSourceId();
-            } else if("workspace".equals(parentType)) {
-                parentId = "workspace";
-            }
+            return NotionPage.builder()
+                    .pageId(result.id())
+                    .title(title)
+                    .url(result.url())
+                    .createdAt(parseDateTime(result.createdTime()))
+                    .lastEditedAt(parseDateTime(result.lastEditedTime()))
+                    .createdBy(createdBy)
+                    .lastEditedBy(lastEditedBy)
+                    .parentId(parentId)
+                    .parentType(parentType)
+                    .build();
+        }catch (Exception e) {
+            log.error("Failed to map NotionPage: {}", result.id(), e);
+            throw new RuntimeException("Failed to map NotionPage: " + result.id(), e);
         }
-
-        NotionUser createdBy = null;
-        if (result.createdBy() != null && result.createdBy().id() != null) {
-            createdBy = notionUserRepository.findById(result.createdBy().id()).orElse(null);
-        }
-
-        NotionUser lastEditedBy = null;
-        if (result.lastEditedBy() != null && result.lastEditedBy().id() != null) {
-            lastEditedBy = notionUserRepository.findById(result.lastEditedBy().id()).orElse(null);
-        }
-
-        return NotionPage.builder()
-                .pageId(result.id())
-                .title(title)
-                .url(result.url())
-                .createdAt(parseDateTime(result.createdTime()))
-                .lastEditedAt(parseDateTime(result.lastEditedTime()))
-                .createdBy(createdBy)
-                .lastEditedBy(lastEditedBy)
-                .parentId(parentId)
-                .parentType(parentType)
-                .build();
     }
 
 
@@ -92,6 +76,28 @@ public class NotionPageMapper {
             }
         }
         return "Untitled";
+    }
+
+    private String extractParentId(NotionSearchApiResponse.Parent parent) {
+        if (parent == null){
+            return null;
+        }
+
+        String parentType = parent.type();
+        return switch (parentType) {
+            case "page_id" -> parent.pageId();
+            case "database_id" -> parent.databaseId();
+            case "data_source_id" -> parent.dataSourceId();
+            case "workspace" -> "workspace";
+            default -> null;
+        };
+    }
+
+    private NotionUser findUser(NotionSearchApiResponse.User user) {
+        if(user != null && user.id() != null) {
+            return notionUserRepository.findById(user.id()).orElse(null);
+        }
+        return null;
     }
 
     private LocalDateTime parseDateTime(String dateTimeString) {

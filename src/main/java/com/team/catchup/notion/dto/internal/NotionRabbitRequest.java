@@ -1,4 +1,4 @@
-package com.team.catchup.notion.dto;
+package com.team.catchup.notion.dto.internal;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.team.catchup.notion.entity.NotionPage;

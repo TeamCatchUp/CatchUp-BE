@@ -1,6 +1,9 @@
 package com.team.catchup.notion.service;
 
-import com.team.catchup.notion.dto.*;
+import com.team.catchup.notion.dto.external.NotionSearchApiResponse;
+import com.team.catchup.notion.dto.external.NotionUserApiResponse;
+import com.team.catchup.notion.dto.internal.NotionRabbitRequest;
+import com.team.catchup.notion.dto.response.NotionSyncCount;
 import com.team.catchup.notion.entity.NotionPage;
 import com.team.catchup.notion.entity.NotionUser;
 import com.team.catchup.notion.mapper.NotionPageMapper;
@@ -28,7 +31,7 @@ public class NotionProcessor {
     public NotionSyncCount syncPageMetadata() {
         log.info("[NOTION][Page] Page Metadata Sync Started");
 
-        List<NotionSearchResponse.NotionPageResult> results = notionApiService
+        List<NotionSearchApiResponse.NotionPageResult> results = notionApiService
                 .fetchAllPages()
                 .block();
 
@@ -55,7 +58,7 @@ public class NotionProcessor {
     public NotionSyncCount syncUsers() {
         log.info("[NOTION][User] User Sync Started");
 
-        List<NotionUserResponse.NotionUserResult> results = notionApiService
+        List<NotionUserApiResponse.NotionUserResult> results = notionApiService
                 .fetchAllUsers()
                 .block();
 

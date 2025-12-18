@@ -1,6 +1,6 @@
 package com.team.catchup.jira.mapper;
 
-import com.team.catchup.jira.dto.response.IssueTypeResponse;
+import com.team.catchup.jira.dto.external.IssueTypeApiResponse;
 import com.team.catchup.jira.entity.IssueType;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -9,9 +9,9 @@ import org.springframework.stereotype.Component;
 @Component
 public class IssueTypeMapper {
 
-    public IssueType toEntity(IssueTypeResponse response) {
+    public IssueType toEntity(IssueTypeApiResponse response) {
         try {
-            Integer issueTypeId = parseIntegerSafely(response.id());
+            Integer issueTypeId = parseInteger(response.id());
 
             // 커스텀 IssueType 확인
             String scopeType = "Global";
@@ -20,7 +20,7 @@ public class IssueTypeMapper {
             if (response.scope() != null) {
                 // scope가 있으면 "Project"
                 scopeType = "Project";
-                scopeProjectId = parseIntegerSafely(response.scope().project().id());
+                scopeProjectId = parseInteger(response.scope().project().id());
             }
 
             return IssueType.builder()
@@ -39,7 +39,7 @@ public class IssueTypeMapper {
         }
     }
 
-    private Integer parseIntegerSafely(String value) {
+    private Integer parseInteger(String value) {
         if (value == null || value.isBlank()) {
             return null;
         }

@@ -1,7 +1,7 @@
 package com.team.catchup.notion.service;
 
-import com.team.catchup.notion.dto.NotionSearchResponse;
-import com.team.catchup.notion.dto.NotionUserResponse;
+import com.team.catchup.notion.dto.external.NotionSearchApiResponse;
+import com.team.catchup.notion.dto.external.NotionUserApiResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
@@ -23,18 +23,18 @@ public class NotionApiService {
 
     // API Key에 접근 권한이 부여된 모든 페이지 조회
     // 최상위 페이지 + 최상위 페이지 아래에서 선언된 페이지 + 데이터베이스에 행으로 들어가있는 페이지
-    public Mono<List<NotionSearchResponse.NotionPageResult>> fetchAllPages() {
+    public Mono<List<NotionSearchApiResponse.NotionPageResult>> fetchAllPages() {
         log.info("[NOTION] Page Search Started");
         return fetchPagesRecursively(null, new ArrayList<>());
     }
 
-    public Mono<List<NotionUserResponse.NotionUserResult>> fetchAllUsers() {
+    public Mono<List<NotionUserApiResponse.NotionUserResult>> fetchAllUsers() {
         log.info("[NOTION] User Search Started");
         return fetchUsersRecursively(null, new ArrayList<>());
     }
 
-    private Mono<List<NotionSearchResponse.NotionPageResult>> fetchPagesRecursively(
-            String startCursor, List<NotionSearchResponse.NotionPageResult> accumulatedPages
+    private Mono<List<NotionSearchApiResponse.NotionPageResult>> fetchPagesRecursively(
+            String startCursor, List<NotionSearchApiResponse.NotionPageResult> accumulatedPages
     ) {
         // Notion API 호출 제한 = 1초당 3회 -> 0.34초에 1회 호출하도록 딜레이 걸어주기
         return Mono.delay(Duration.ofMillis(340))
@@ -59,14 +59,14 @@ public class NotionApiService {
                 });
     }
 
-    private Mono<List<NotionUserResponse.NotionUserResult>> fetchUsersRecursively(
-            String startCursor, List<NotionUserResponse.NotionUserResult> accumulatedUsers) {
+    private Mono<List<NotionUserApiResponse.NotionUserResult>> fetchUsersRecursively(
+            String startCursor, List<NotionUserApiResponse.NotionUserResult> accumulatedUsers) {
 
         return Mono.delay(Duration.ofMillis(340))
                 .then(fetchUserBatch(startCursor))
                 .flatMap(response -> {
                     if (response.results() != null) {
-                        List<NotionUserResponse.NotionUserResult> personUsers = response.results().stream()
+                        List<NotionUserApiResponse.NotionUserResult> personUsers = response.results().stream()
                                 .filter(user -> "person".equals(user.type()))
                                 .toList();
                         accumulatedUsers.addAll(personUsers);
@@ -87,7 +87,7 @@ public class NotionApiService {
                 });
     }
 
-    private Mono<NotionSearchResponse> fetchPageBatch(String startCursor) {
+    private Mono<NotionSearchApiResponse> fetchPageBatch(String startCursor) {
         Map<String, Object> body = new HashMap<>();
 
         body.put("filter", Map.of(
@@ -108,11 +108,11 @@ public class NotionApiService {
                 .uri("/v1/search")
                 .bodyValue(body)
                 .retrieve()
-                .bodyToMono(NotionSearchResponse.class)
+                .bodyToMono(NotionSearchApiResponse.class)
                 .doOnError(error -> log.error("[NOTION] Page Full Sync Failed", error));
     }
 
-    private Mono<NotionUserResponse> fetchUserBatch(String startCursor) {
+    private Mono<NotionUserApiResponse> fetchUserBatch(String startCursor) {
         return notionWebClient.get()
                 .uri(uriBuilder ->{
                     var builder = uriBuilder.path("v1/users");
@@ -122,7 +122,7 @@ public class NotionApiService {
                     return builder.build();
                 })
                 .retrieve()
-                .bodyToMono(NotionUserResponse.class)
+                .bodyToMono(NotionUserApiResponse.class)
                 .doOnError(error -> log.error("[NOTION] Page Fetch Failed", error));
     }
 }

@@ -1,4 +1,4 @@
-package com.team.catchup.notion.dto;
+package com.team.catchup.notion.dto.external;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Map;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-public record NotionSearchResponse(
+public record NotionSearchApiResponse(
         @JsonProperty("results") List<NotionPageResult> results,
         @JsonProperty("next_cursor") String nextCursor,
         @JsonProperty("has_more") boolean hasMore

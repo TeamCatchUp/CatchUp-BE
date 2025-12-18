@@ -1,5 +1,6 @@
-package com.team.catchup.common.sse.dto;
+package com.team.catchup.notion.dto.response;
 
+import com.team.catchup.common.sse.dto.SyncCount;
 import com.team.catchup.notion.dto.NotionSyncStep;
 import lombok.Builder;
 import lombok.Getter;

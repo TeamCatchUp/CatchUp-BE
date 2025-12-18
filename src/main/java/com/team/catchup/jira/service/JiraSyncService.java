@@ -1,6 +1,6 @@
 package com.team.catchup.jira.service;
 
-import com.team.catchup.common.sse.dto.JiraSyncProgress;
+import com.team.catchup.jira.dto.response.JiraSyncProgress;
 import com.team.catchup.common.sse.dto.SseEventType;
 import com.team.catchup.common.sse.dto.SyncTarget;
 import com.team.catchup.common.sse.event.SyncEvent;
@@ -37,79 +37,42 @@ public class JiraSyncService {
         long startTime = System.currentTimeMillis();
 
         try {
-            publisher.publishEvent(new SyncEvent(userId, SyncTarget.JIRA, SseEventType.IN_PROGRESS, "Starting Jira Full Sync"));
+            publishSimpleMessage(userId, SseEventType.IN_PROGRESS, "Starting Jira Full Sync");
 
             // Jira Projects
             if (shouldExecute(startFrom, JiraSyncStep.PROJECTS)) {
-                SyncCount count = jiraProcessor.syncProjects();
-
-                JiraSyncProgress progress = JiraSyncProgress.of(
-                        JiraSyncStep.PROJECTS, count, "Project Sync Completed");
-                publisher.publishEvent(new SyncEvent(userId, SyncTarget.JIRA, SseEventType.IN_PROGRESS, progress));
-
-                log.info("[JIRA][FULL SYNC] Projects Completed | Total: {}, Saved: {}", count.getTotal(), count.getSaved());
+                syncProjects(userId);
             }
 
             // Jira Users
             if (shouldExecute(startFrom, JiraSyncStep.USERS)) {
-                SyncCount count = jiraProcessor.syncUsers();
-
-                JiraSyncProgress progress = JiraSyncProgress.of(
-                        JiraSyncStep.USERS, count, "User Sync Completed");
-                publisher.publishEvent(new SyncEvent(userId, SyncTarget.JIRA, SseEventType.IN_PROGRESS, progress));
-
-                log.info("[JIRA][FULL SYNC] Users Completed | Total: {}, Saved: {}", count.getTotal(), count.getSaved());
+                syncUsers(userId);
             }
 
             // Issue Types
             if (shouldExecute(startFrom, JiraSyncStep.ISSUE_TYPES)) {
-                SyncCount count = jiraProcessor.syncIssueTypes();
-
-                JiraSyncProgress progress = JiraSyncProgress.of(
-                        JiraSyncStep.ISSUE_TYPES, count, "Issue Type Sync Completed");
-                publisher.publishEvent(new SyncEvent(userId, SyncTarget.JIRA, SseEventType.IN_PROGRESS, progress));
-
-                log.info("[JIRA][FULL SYNC] Issue Types Completed | Total: {}, Saved: {}", count.getTotal(), count.getSaved());
+                syncIssueTypes(userId);
             }
 
             // Project Issues
             if (shouldExecute(startFrom, JiraSyncStep.PROJECT_ISSUES)) {
-                List<String> projectKeys = resolveTargetProjectKeys(targetProjectKeys);
-                int totalProjects = projectKeys.size();
-                int currentIdx = 0;
-
-                publisher.publishEvent(new SyncEvent(userId, SyncTarget.JIRA, SseEventType.IN_PROGRESS,
-                        "Starting Jira Issue Sync"));
-                log.info("[JIRA][FULL SYNC] Issue Sync Started for {} projects", projectKeys.size());
-
-                for (String projectKey : projectKeys) {
-                    currentIdx++;
-
-                    ProjectSyncResult result = jiraProcessor.syncSingleProjectIssue(projectKey);
-
-                    String msg = String.format("[%d/%d] Sync Completed for Project Key : (%s)",
-                            currentIdx, totalProjects, projectKey);
-
-                    JiraSyncProgress progress = JiraSyncProgress.ofProjectIssue(JiraSyncStep.PROJECT_ISSUES, result , projectKey, msg);
-                    publisher.publishEvent(new SyncEvent(userId, SyncTarget.JIRA, SseEventType.IN_PROGRESS, progress));
-                }
+                syncProjectIssues(userId, targetProjectKeys);
             }
 
             long duration = System.currentTimeMillis() - startTime;
             String completeMsg = String.format("Jira Full Sync Completed | Time Used : %ds",duration/1000);
 
-            JiraSyncProgress progress = JiraSyncProgress.builder()
-                    .step(JiraSyncStep.COMPLETED)
-                    .message(completeMsg)
-                    .build();
-
-            publisher.publishEvent(new SyncEvent(userId, SyncTarget.JIRA, SseEventType.COMPLETED, progress));
+            JiraSyncProgress progress = JiraSyncProgress.of(
+                    JiraSyncStep.COMPLETED,
+                    null,
+                    completeMsg
+            );
+            publishProgressMessage(userId, SseEventType.COMPLETED, completeMsg, progress);
             log.info("[JIRA][FULL SYNC] All Steps Completed - Time Used: {}ms", duration);
 
         } catch (Exception e) {
             log.error("[JIRA][FULL SYNC] FAILED", e);
-
-            publisher.publishEvent(new SyncEvent(userId, SyncTarget.JIRA, SseEventType.FAILED, "Jira Full Sync Failed" + e.getMessage()));
+            publishSimpleMessage(userId, SseEventType.FAILED, "Jira Full Sync Failed: " + e.getMessage());
         }
     }
 
@@ -127,6 +90,77 @@ public class JiraSyncService {
         log.info("[JIRA][RETRY] Completed");
     }
 
+    //==================================================================================================================
+    private void syncProjects(String userId) {
+        SyncCount count = jiraProcessor.syncProjects();
+
+        JiraSyncProgress progress = JiraSyncProgress.of(
+                JiraSyncStep.PROJECTS,
+                count,
+                "Project Sync Completed"
+        );
+
+        publishProgressMessage(userId, SseEventType.IN_PROGRESS, "Project Sync Completed", progress);
+        log.info("[JIRA SYNC] Projects completed - total: {}, saved: {}",
+                count.getTotal(), count.getSaved());
+    }
+
+    private void syncUsers(String userId) {
+        SyncCount count = jiraProcessor.syncUsers();
+
+        JiraSyncProgress progress = JiraSyncProgress.of(
+                JiraSyncStep.USERS,
+                count,
+                "User Sync Completed"
+        );
+
+        publishProgressMessage(userId, SseEventType.IN_PROGRESS, "User Sync Completed", progress);
+        log.info("[JIRA SYNC] Users completed - total: {}, saved: {}",
+                count.getTotal(), count.getSaved());
+    }
+
+    private void syncIssueTypes(String userId) {
+        SyncCount count = jiraProcessor.syncIssueTypes();
+
+        JiraSyncProgress progress = JiraSyncProgress.of(
+                JiraSyncStep.ISSUE_TYPES,
+                count,
+                "Issue Type Sync Completed"
+        );
+
+        publishProgressMessage(userId, SseEventType.IN_PROGRESS, "Issue Type Sync Completed", progress);
+        log.info("[JIRA SYNC] IssueTypes completed - total: {}, saved: {}",
+                count.getTotal(), count.getSaved());
+    }
+
+    private void syncProjectIssues(String userId, List<String> targetProjectKeys) {
+        List<String> projectKeys = resolveTargetProjectKeys(targetProjectKeys);
+        int totalProjects = projectKeys.size();
+        int currentIdx = 0;
+
+        publishSimpleMessage(userId, SseEventType.IN_PROGRESS, "Starting Jira Issue Sync");
+        log.info("[JIRA SYNC] Issue sync started - projects: {}", totalProjects);
+
+        for (String projectKey : projectKeys) {
+            currentIdx++;
+
+            ProjectSyncResult result = jiraProcessor.syncSingleProjectIssue(projectKey);
+
+            String msg = String.format("[%d/%d] Sync completed for project: %s",
+                    currentIdx, totalProjects, projectKey);
+
+            JiraSyncProgress progress = JiraSyncProgress.ofProjectIssue(
+                    JiraSyncStep.PROJECT_ISSUES,
+                    result,
+                    projectKey,
+                    msg
+            );
+
+            publishProgressMessage(userId, SseEventType.IN_PROGRESS, msg, progress);
+        }
+    }
+
+
     private List<String> resolveTargetProjectKeys(List<String> targetProjectKeys) {
         if (targetProjectKeys != null && !targetProjectKeys.isEmpty()) {
             return targetProjectKeys;
@@ -138,5 +172,20 @@ public class JiraSyncService {
 
     private boolean shouldExecute(JiraSyncStep startFrom, JiraSyncStep target) {
         return startFrom.ordinal() <= target.ordinal();
+    }
+
+    private void publishSimpleMessage(String userId, SseEventType type, String message) {
+        publisher.publishEvent(new SyncEvent(userId, SyncTarget.JIRA, type, message));
+    }
+
+    private void publishProgressMessage(
+            String userId,
+            SseEventType type,
+            String message,
+            JiraSyncProgress progress
+    ) {
+        publisher.publishEvent(
+                new SyncEvent(userId, SyncTarget.JIRA, type, message, progress)
+        );
     }
 }

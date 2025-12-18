@@ -1,6 +1,6 @@
 package com.team.catchup.notion.service;
 
-import com.team.catchup.notion.dto.NotionSyncCount;
+import com.team.catchup.notion.dto.response.NotionSyncCount;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -22,12 +22,12 @@ public class NotionSyncService {
             // 1. User
             NotionSyncCount userCount = notionProcessor.syncUsers();
             log.info("[NOTION][FULL SYNC] User Sync Completed - Total: {}, Saved: {}",
-                    userCount.getTotalFetched(), userCount.getSaved());
+                    userCount.totalFetched(), userCount.saved());
 
             // 2. Page
             NotionSyncCount pageCount = notionProcessor.syncPageMetadata();
             log.info("[NOTION][FULL SYNC] Page Sync Completed - Total: {}, Saved: {}",
-                    pageCount.getTotalFetched(), pageCount.getSaved());
+                    pageCount.totalFetched(), pageCount.saved());
 
             long duration = System.currentTimeMillis() - startTime;
             log.info("[NOTION][FULL SYNC] Sync Completed - Duration: {}", duration);
@@ -44,7 +44,7 @@ public class NotionSyncService {
             NotionSyncCount syncCount = notionProcessor.syncPageMetadata();
 
             log.info("[Notion Metadata Sync] SUCCESS - Total: {}, Saved: {} ==="
-                    ,syncCount.getTotalFetched(), syncCount.getSaved());
+                    ,syncCount.totalFetched(), syncCount.saved());
 
         } catch (Exception e) {
             log.error("[NOTION][PAGE] Page Metadata Sync Failed", e);
@@ -59,7 +59,7 @@ public class NotionSyncService {
             NotionSyncCount syncCount = notionProcessor.syncUsers();
 
             log.info("=== [Notion User Sync] SUCCESS - Total: {}, Saved: {} ===",
-                    syncCount.getTotalFetched(), syncCount.getSaved());
+                    syncCount.totalFetched(), syncCount.saved());
 
         } catch (Exception e) {
             log.error("[NOTION][USER] User Sync Failed", e);
