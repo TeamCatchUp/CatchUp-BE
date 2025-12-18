@@ -1,4 +1,4 @@
-package com.team.catchup.config;
+package com.team.catchup.common.config;
 
 import com.team.catchup.jira.config.JiraProperties;
 import com.team.catchup.notion.config.NotionProperties;

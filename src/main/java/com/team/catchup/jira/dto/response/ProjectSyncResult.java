@@ -1,5 +1,6 @@
 package com.team.catchup.jira.dto.response;
 
+import com.team.catchup.common.sse.dto.SyncCount;
 import lombok.Builder;
 import lombok.Getter;
 

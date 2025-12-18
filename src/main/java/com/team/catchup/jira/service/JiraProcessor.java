@@ -1,5 +1,6 @@
 package com.team.catchup.jira.service;
 
+import com.team.catchup.common.sse.dto.SyncCount;
 import com.team.catchup.jira.dto.IssueSyncResult;
 import com.team.catchup.jira.dto.response.*;
 import com.team.catchup.jira.entity.*;

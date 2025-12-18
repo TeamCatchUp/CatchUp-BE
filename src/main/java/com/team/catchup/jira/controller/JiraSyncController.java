@@ -1,6 +1,6 @@
 package com.team.catchup.jira.controller;
 
-import com.team.catchup.jira.dto.SyncStep;
+import com.team.catchup.jira.dto.JiraSyncStep;
 import com.team.catchup.jira.service.JiraSyncService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,9 +22,9 @@ public class JiraSyncController {
      * POST /api/jira/sync/full
      */
     @PostMapping("/full")
-    public ResponseEntity<String> fullSync() {
+    public ResponseEntity<String> fullSync(@RequestParam String userId) {
         log.info("[API] Full Sync 요청");
-        jiraSyncService.fullSync();
+        jiraSyncService.fullSync(userId);
         return ResponseEntity.ok("Jira Full Sync Process Started at Background");
     }
 
@@ -34,11 +34,12 @@ public class JiraSyncController {
      */
     @PostMapping("/retry")
     public ResponseEntity<String> retrySync(
-            @RequestParam(name = "startFrom") SyncStep startFrom,
+            @RequestParam String userId,
+            @RequestParam(name = "startFrom") JiraSyncStep startFrom,
             @RequestParam(name = "projectKeys", required = false) List<String> projectKeys
     ) {
         log.info("[API] Retry Sync 요청 - StartFrom: {}, ProjectKeys: {}", startFrom, projectKeys);
-        jiraSyncService.fullSyncFrom(startFrom, projectKeys);
+        jiraSyncService.fullSyncFrom(userId, startFrom, projectKeys);
         return ResponseEntity.ok("Jira Retry Sync Process Started at Background");
     }
 
@@ -49,6 +50,7 @@ public class JiraSyncController {
      */
     @PostMapping("/retry/projects")
     public ResponseEntity<String> retryFailedProjects(
+            @RequestParam String userId,
             @RequestBody List<String> failedProjectKeys
     ) {
         log.info("[API] Retry Failed Projects 요청 - Projects: {}", failedProjectKeys);

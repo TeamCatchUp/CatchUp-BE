@@ -1,4 +1,4 @@
-package com.team.catchup.config;
+package com.team.catchup.common.config;
 
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;

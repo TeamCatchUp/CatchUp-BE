@@ -1,4 +1,4 @@
-package com.team.catchup.jira.dto.response;
+package com.team.catchup.common.sse.dto;
 
 import lombok.Builder;
 import lombok.Getter;
