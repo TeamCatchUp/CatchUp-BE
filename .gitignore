@@ -37,7 +37,9 @@ out/
 .vscode/
 
 ### Configuration ###
-application.yml
 application.properties
 *.override.yml
 .env
+
+### Google Drive API ###
+*credentials.json

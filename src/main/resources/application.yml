@@ -1,0 +1,46 @@
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_OAUTH_CLIENT_ID}
+            client-secret: ${GOOGLE_OAUTH_CLIENT_SECRET}
+            scope:
+              - email
+              - profile
+
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+
+  jpa:
+    hibernate:
+      ddl-auto: ${JPA_HIBERNATE_DDL_AUTO}
+    database-platform: org.hibernate.dialect.MySQLDialect
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+
+meilisearch:
+  url: ${MEILISEARCH_URL}
+  api-key: ${MEILISEARCH_MASTER_KEY}
+
+jira:
+  base-url: ${JIRA_BASE_URL}
+  email: ${JIRA_USER_EMAIL}
+  api-token: ${JIRA_API_TOKEN}
+
+  connection:
+    max-connections: 100
+    pending-acquire-timeout: 45000  # ms
+  timeout:
+    connect: 10000      # ms
+    response: 60000     # ms
+    read: 60000         # ms
+    write: 60000        # ms
+  memory:
+    max-in-memory-size: 2097152  # 2MB (2 * 1024 * 1024)
