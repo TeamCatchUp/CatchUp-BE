@@ -40,6 +40,7 @@ out/
 application.properties
 *.override.yml
 .env
+.env.dev
 
 ### Google Drive API ###
 *credentials.json
