@@ -31,6 +31,10 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         String email = (String) attributes.get("email");
         String name = (String) attributes.get("name");
 
+        if (email == null) {
+            throw new OAuth2AuthenticationException("이메일 정보를 가져올 수 없습니다.");
+        }
+
         Member member = saveOrUpdate(email, name, providerId, registrationId);
 
         return new CustomOAuth2User(member, attributes);
