@@ -47,12 +47,12 @@ public class JwtTokenProvider {
                 .compact();
     }
 
-    public boolean validateToken(String token) {
+    public boolean validateToken(String accessToken) {
         try {
             Jwts.parserBuilder()
                     .setSigningKey(key)
                     .build()
-                    .parseClaimsJws(token);
+                    .parseClaimsJws(accessToken);
             return true;
         } catch (SecurityException | MalformedJwtException e) {
             log.info("잘못된 JWT 서명입니다.");
@@ -66,16 +66,16 @@ public class JwtTokenProvider {
         return false;
     }
 
-    public String getEmail(String token) {
-        return parseClaims(token).getSubject();
+    public String getEmail(String accessToken) {
+        return parseClaims(accessToken).getSubject();
     }
 
-    public Claims parseClaims(String accssToken){
+    public Claims parseClaims(String accessToken){
         try {
             return Jwts.parserBuilder()
                     .setSigningKey(key)
                     .build()
-                    .parseClaimsJws(accssToken)
+                    .parseClaimsJws(accessToken)
                     .getBody();
         } catch (ExpiredJwtException e) {
             return e.getClaims();
