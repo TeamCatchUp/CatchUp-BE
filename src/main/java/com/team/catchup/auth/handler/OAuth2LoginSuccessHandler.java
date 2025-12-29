@@ -27,7 +27,7 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
         String email = oAuth2User.getMember().getEmail();
         String role = oAuth2User.getMember().getRole().name();
 
-        log.info("Google 로그인 성공. 이메일: {}", email);
+        log.info("Google 로그인 성공");
 
         String accessToken = tokenProvider.createAccessToken(email, role);
         response.addHeader("Authorization", "Bearer " + accessToken);
