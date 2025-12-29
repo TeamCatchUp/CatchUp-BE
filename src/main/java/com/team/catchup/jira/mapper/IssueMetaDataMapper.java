@@ -1,6 +1,6 @@
 package com.team.catchup.jira.mapper;
 
-import com.team.catchup.jira.dto.response.IssueMetaDataResponse;
+import com.team.catchup.jira.dto.external.IssueMetadataApiResponse;
 import com.team.catchup.jira.entity.IssueMetadata;
 import com.team.catchup.jira.entity.IssueType;
 import com.team.catchup.jira.entity.JiraProject;
@@ -30,60 +30,33 @@ public class IssueMetaDataMapper {
     private final JiraProjectRepository jiraProjectRepository;
     private final JiraUserRepository jiraUserRepository;
 
-    public IssueMetadata toEntity(IssueMetaDataResponse.JiraIssue jiraIssue) {
+    public IssueMetadata toEntity(IssueMetadataApiResponse.JiraIssue jiraIssue) {
         try {
-            IssueMetaDataResponse.Fields fields = jiraIssue.fields();
+            IssueMetadataApiResponse.Fields fields = jiraIssue.fields();
 
-            IssueType issueType = null;
-            if (fields.issueType() != null && fields.issueType().id() != null) {
-                Integer issueTypeId = parseIntegerSafely(fields.issueType().id());
-                issueType = issueTypeRepository.findById(issueTypeId).orElse(null);
-                if (issueType == null) {
-                    log.warn("IssueType not found: {}", issueTypeId);
-                }
-            }
-
-            JiraProject jiraProject = null;
-            if (fields.project() != null && fields.project().projectId() != null) {
-                Integer projectId = parseIntegerSafely(fields.project().projectId());
-                jiraProject = jiraProjectRepository.findById(projectId).orElse(null);
-                if (jiraProject == null) {  // ✅ issueType -> jiraProject 수정
-                    log.warn("Project not found: {}", projectId);
-                }
-            }
-
-            JiraUser creator = null;
-            if (fields.creator() != null && fields.creator().id() != null) {
-                creator = jiraUserRepository.findById(fields.creator().id()).orElse(null);
-            }
-
-            JiraUser reporter = null;
-            if (fields.reporter() != null && fields.reporter().id() != null) {
-                reporter = jiraUserRepository.findById(fields.reporter().id()).orElse(null);
-            }
-
-            JiraUser assignee = null;
-            if (fields.assignee() != null && fields.assignee().id() != null) {
-                assignee = jiraUserRepository.findById(fields.assignee().id()).orElse(null);
-            }
+            IssueType issueType = findIssueType(fields);
+            JiraProject jiraProject = findJiraProject(fields);
+            JiraUser creator = findUser(fields.creator());
+            JiraUser reporter = findUser(fields.reporter());
+            JiraUser assignee = findUser(fields.assignee());
 
             return IssueMetadata.builder()
-                    .issueId(parseIntegerSafely(jiraIssue.id()))
+                    .issueId(parseInteger(jiraIssue.id()))
                     .issueKey(jiraIssue.key())
                     .self(jiraIssue.self())
                     .issueType(issueType)
                     .project(jiraProject)
                     .summary(fields.summary())
                     .parentIssueId(fields.parentIssue() != null ?
-                            parseIntegerSafely(fields.parentIssue().parentIssueId()) : null)
-                    .statusId(parseIntegerSafely(fields.statusCategory().statusId()))
+                            parseInteger(fields.parentIssue().parentIssueId()) : null)
+                    .statusId(parseInteger(fields.statusCategory().statusId()))
                     .priorityId(fields.issuePriority() != null ?
-                            parseIntegerSafely(fields.issuePriority().priorityId()) : null)
-                    .duedate(parseDateTimeSafely(fields.issueDueDate()))
-                    .issueCreatedAt(parseDateTimeSafely(fields.issueCreatedAt()))
+                            parseInteger(fields.issuePriority().priorityId()) : null)
+                    .duedate(parseDateTime(fields.issueDueDate()))
+                    .issueCreatedAt(parseDateTime(fields.issueCreatedAt()))
                     .resolutionId(fields.issueResolution() != null ?
-                            parseIntegerSafely(fields.issueResolution().resolutionId()) : null)
-                    .resolutionDate(parseDateTimeSafely(fields.resolutionDate()))
+                            parseInteger(fields.issueResolution().resolutionId()) : null)
+                    .resolutionDate(parseDateTime(fields.resolutionDate()))
                     .creator(creator)
                     .reporter(reporter)
                     .assignee(assignee)
@@ -95,7 +68,7 @@ public class IssueMetaDataMapper {
         }
     }
 
-    private Integer parseIntegerSafely(String value) {
+    private Integer parseInteger(String value) {
         if (value == null || value.isBlank()) {
             return null;
         }
@@ -107,7 +80,7 @@ public class IssueMetaDataMapper {
         }
     }
 
-    private LocalDateTime parseDateTimeSafely(String dateTimeString) {
+    private LocalDateTime parseDateTime(String dateTimeString) {
         if (dateTimeString == null || dateTimeString.isBlank()) {
             return null;
         }
@@ -124,5 +97,36 @@ public class IssueMetaDataMapper {
                 return null;
             }
         }
+    }
+
+    private JiraProject findJiraProject(IssueMetadataApiResponse.Fields fields) {
+        if (fields.project() != null && fields.project().projectId() != null) {
+            Integer projectId = parseInteger(fields.project().projectId());
+            JiraProject jiraProject = jiraProjectRepository.findById(projectId).orElse(null);
+            if (jiraProject == null) {
+                log.warn("Project not found: {}", projectId);
+            }
+            return jiraProject;
+        }
+        return null;
+    }
+
+    private JiraUser findUser(IssueMetadataApiResponse.UserID userID) {
+        if (userID != null && userID.id() != null) {
+            return jiraUserRepository.findById(userID.id()).orElse(null);
+        }
+        return null;
+    }
+
+    private IssueType findIssueType(IssueMetadataApiResponse.Fields fields) {
+        if (fields.issueType() != null && fields.issueType().id() != null) {
+            Integer issueTypeId = parseInteger(fields.issueType().id());
+            IssueType issueType = issueTypeRepository.findById(issueTypeId).orElse(null);
+            if (issueType == null) {
+                log.warn("IssueType not found: {}", issueTypeId);
+            }
+            return issueType;
+        }
+        return null;
     }
 }

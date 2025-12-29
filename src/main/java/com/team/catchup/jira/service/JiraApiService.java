@@ -1,11 +1,11 @@
 package com.team.catchup.jira.service;
 
-import com.team.catchup.jira.dto.response.IssueMetaDataResponse;
-import com.team.catchup.jira.dto.response.IssueTypeResponse;
-import com.team.catchup.jira.dto.response.JiraProjectResponse;
-import com.team.catchup.jira.dto.response.JiraUserResponse;
-import lombok.RequiredArgsConstructor;
+import com.team.catchup.jira.dto.external.IssueMetadataApiResponse;
+import com.team.catchup.jira.dto.external.IssueTypeApiResponse;
+import com.team.catchup.jira.dto.external.JiraProjectApiResponse;
+import com.team.catchup.jira.dto.external.JiraUserApiResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
@@ -13,18 +13,26 @@ import reactor.core.publisher.Mono;
 import java.util.List;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class JiraApiService {
 
     private final WebClient jiraWebClient;
 
+    public JiraApiService(@Qualifier("jiraWebClient") WebClient jiraWebClient) {
+        this.jiraWebClient = jiraWebClient;
+    }
+
     // TODO : Meilisearch Document 생성 시 필요한 요소들 확정되면 JQL 쿼리 수정
-    public Mono<IssueMetaDataResponse> fetchIssues(String projectKey, String nextPageToken, Integer maxResults, boolean fetchAllFields) {
+    public Mono<IssueMetadataApiResponse> fetchIssues(
+            String projectKey,
+            String nextPageToken,
+            Integer maxResults,
+            boolean fetchAllFields
+    ) {
         String jql = "project = " + projectKey;
 
-        log.info("=== POST Issue MetaData API 호출 시작 ===");
-        log.info("JQL: {}, NextPageToken: {}", jql, nextPageToken != null ? "EXISTS" : "null");
+        log.debug("[JIRA API] Fetching issues - projectKey: {}, nextPageToken: {}",
+                projectKey, nextPageToken != null ? "EXISTS" : "null");
 
         return jiraWebClient.get()
                 .uri(uriBuilder -> {
@@ -46,37 +54,36 @@ public class JiraApiService {
                     return builder.build();
                 })
                 .retrieve()
-                .bodyToMono(IssueMetaDataResponse.class)
+                .bodyToMono(IssueMetadataApiResponse.class)
                 .doOnSuccess(response -> {
                     if (response != null && response.issues() != null) {
-                        log.info("[JIRA] 동기화 성공 | [PROJECT KEY]: {} | [ISSUE COUNT]: {} | [IS_LAST]: {}",
+                        log.info("[JIRA API] Fetched Issues | PROJECT KEY: {} | ISSUE COUNT: {} | IS_LAST: {}",
                                 projectKey, response.issues().size(), response.isLast());
                     }
                     else {
-                        log.warn("[JIRA] Issue 응답이 비어있습니다");
+                        log.warn("[JIRA API] Empty Reponse for Project Key : {}", projectKey);
                     }
                 })
-                .doOnError(error -> log.error("[JIRA] 동기화 실패 | [PROJECT KEY]: {}", projectKey, error));
+                .doOnError(error -> log.error("[JIRA API] Failed To Fetch Issues | [PROJECT KEY]: {}", projectKey, error));
     }
 
     // Pagination, startAt 지원 안됨
-    public Mono<List<IssueTypeResponse>> fetchIssueTypes() {
-        log.info("=== POST Issue Types API 호출 시작 ===");
+    public Mono<List<IssueTypeApiResponse>> fetchIssueTypes() {
+        log.debug("[JIRA API] Fetching issue types");
 
         return jiraWebClient.get()
                 .uri("/rest/api/3/issuetype")
                 .retrieve()
-                .bodyToFlux(IssueTypeResponse.class)
+                .bodyToFlux(IssueTypeApiResponse.class)
                 .collectList()
                 .doOnSuccess(issueTypes ->
-                        log.info("[JIRA] IssueType 조회 성공 | Count: {}", issueTypes.size()))
+                        log.info("[JIRA API] Issue types fetched - count: {}", issueTypes.size()))
                 .doOnError(error ->
-                        log.error("[JIRA] IssueType 조회 실패", error));
+                        log.error("[JIRA API] Failed to fetch issue types", error));
     }
 
-    public Mono<List<JiraUserResponse>> fetchUsers(Integer startAt, Integer maxResults) {
-        log.info("=== POST Jira Users API 호출 시작 ===");
-        log.info("StartAt: {}, MaxResults: {}", startAt, maxResults);
+    public Mono<List<JiraUserApiResponse>> fetchUsers(Integer startAt, Integer maxResults) {
+        log.debug("[JIRA API] Fetching users - startAt: {}, maxResults: {}", startAt, maxResults);
 
         return jiraWebClient.get()
                 .uri(uriBuilder -> uriBuilder
@@ -85,18 +92,17 @@ public class JiraApiService {
                         .queryParam("maxResults", maxResults != null ? maxResults : 50)
                         .build())
                 .retrieve()
-                .bodyToFlux(JiraUserResponse.class)
+                .bodyToFlux(JiraUserApiResponse.class)
                 .collectList()
                 .doOnSuccess(users ->
-                        log.info("[JIRA] User 조회 성공 | Count: {}",
+                        log.info("[JIRA API] Users fetched - count: {}",
                                 users != null ? users.size() : 0))
                 .doOnError(error ->
-                        log.error("[JIRA] User 조회 실패", error));
+                        log.error("[JIRA API] Failed to fetch users", error));
     }
 
-    public Mono<JiraProjectResponse> fetchProjects(Integer startAt, Integer maxResults) {
-        log.info("=== POST Projects API 호출 시작 ===");
-        log.info("StartAt: {}, MaxResults: {}", startAt, maxResults);
+    public Mono<JiraProjectApiResponse> fetchProjects(Integer startAt, Integer maxResults) {
+        log.debug("[JIRA API] Fetching projects - startAt: {}, maxResults: {}", startAt, maxResults);
 
         return jiraWebClient.get()
                 .uri(uriBuilder -> uriBuilder
@@ -106,11 +112,12 @@ public class JiraApiService {
                         .queryParam("maxResults", maxResults != null ? maxResults : 100)
                         .build())
                 .retrieve()
-                .bodyToMono(JiraProjectResponse.class)
+                .bodyToMono(JiraProjectApiResponse.class)
                 .doOnSuccess(response ->
-                        log.info("[JIRA] Project 조회 성공 | Count: {}, Total: {}",
+                        log.info("[JIRA API] Projects fetched - count: {}, total: {}",
                                 response != null && response.values() != null ? response.values().size() : 0,
                                 response != null ? response.total() : 0))
                 .doOnError(error ->
-                        log.error("[JIRA] Project 조회 실패", error));
-    }}
+                        log.error("[JIRA API] Failed to fetch projects", error));
+    }
+}

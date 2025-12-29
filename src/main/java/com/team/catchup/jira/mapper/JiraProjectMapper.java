@@ -1,6 +1,6 @@
 package com.team.catchup.jira.mapper;
 
-import com.team.catchup.jira.dto.response.JiraProjectResponse;
+import com.team.catchup.jira.dto.external.JiraProjectApiResponse;
 import com.team.catchup.jira.entity.JiraProject;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -15,7 +15,7 @@ public class JiraProjectMapper {
     private static final DateTimeFormatter JIRA_DATE_FORMATTER =
             DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSZ");
 
-    public JiraProject toEntity(JiraProjectResponse.ProjectValue projectValue) {
+    public JiraProject toEntity(JiraProjectApiResponse.ProjectValue projectValue) {
         try{
             String avatarUrl = null;
             if (projectValue.avatarUrls() != null) {
@@ -26,7 +26,7 @@ public class JiraProjectMapper {
             LocalDateTime lastIssueUpdateTime = null;
             if(projectValue.insight() != null) {
                 totalIssueCount = projectValue.insight().totalIssueCount();
-                lastIssueUpdateTime = parseDateTimeSafely(
+                lastIssueUpdateTime = parseDateTime(
                         projectValue.insight().lastIssueUpdateTime()
                 );
             }
@@ -51,7 +51,7 @@ public class JiraProjectMapper {
         }
     }
 
-    private LocalDateTime parseDateTimeSafely(String dateString) {
+    private LocalDateTime parseDateTime(String dateString) {
         if (dateString == null || dateString.isBlank()) {
             return null;
         }

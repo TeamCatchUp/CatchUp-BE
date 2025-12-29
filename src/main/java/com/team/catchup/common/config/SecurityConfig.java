@@ -1,4 +1,4 @@
-package com.team.catchup.config;
+package com.team.catchup.common.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

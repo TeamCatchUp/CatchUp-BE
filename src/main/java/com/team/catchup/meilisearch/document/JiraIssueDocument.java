@@ -1,6 +1,6 @@
 package com.team.catchup.meilisearch.document;
 
-import com.team.catchup.jira.dto.response.IssueMetaDataResponse;
+import com.team.catchup.jira.dto.external.IssueMetadataApiResponse;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -39,7 +39,7 @@ public class JiraIssueDocument implements MeiliSearchDocument {
      * @param jiraIssue IssueMetaDataResponse.JiraIssue
      * @return JiraIssueDocument 객체
      */
-    static public JiraIssueDocument from(IssueMetaDataResponse.JiraIssue jiraIssue) {
+    static public JiraIssueDocument from(IssueMetadataApiResponse.JiraIssue jiraIssue) {
         if (jiraIssue == null){
             return null;
         }
@@ -54,7 +54,7 @@ public class JiraIssueDocument implements MeiliSearchDocument {
             return jiraIssueDocument;
         }
 
-        IssueMetaDataResponse.Fields fields = jiraIssue.fields();
+        IssueMetadataApiResponse.Fields fields = jiraIssue.fields();
 
         jiraIssueDocument.setSummary(fields.summary());
         jiraIssueDocument.setCreatedAt(fields.issueCreatedAt());

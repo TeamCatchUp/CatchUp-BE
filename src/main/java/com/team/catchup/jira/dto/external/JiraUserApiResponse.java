@@ -1,10 +1,10 @@
-package com.team.catchup.jira.dto.response;
+package com.team.catchup.jira.dto.external;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-public record JiraUserResponse(
+public record JiraUserApiResponse(
         @JsonProperty("accountId")
         String accountId,
 
