@@ -66,10 +66,8 @@ public class JwtTokenProvider {
         return false;
     }
 
-    public Long getMemberId(String token) {
-        return Long.parseLong(
-                parseClaims(token).getSubject()
-        );
+    public String getEmail(String token) {
+        return parseClaims(token).getSubject();
     }
 
     public Claims parseClaims(String accssToken){
