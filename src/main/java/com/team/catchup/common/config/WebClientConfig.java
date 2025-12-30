@@ -1,5 +1,6 @@
 package com.team.catchup.common.config;
 
+import com.team.catchup.github.config.GithubProperties;
 import com.team.catchup.jira.config.JiraProperties;
 import com.team.catchup.notion.config.NotionProperties;
 import io.netty.channel.ChannelOption;
@@ -26,11 +27,12 @@ import java.util.concurrent.TimeUnit;
 @Configuration
 @RequiredArgsConstructor
 @Slf4j
-@EnableConfigurationProperties({JiraProperties.class, NotionProperties.class})
+@EnableConfigurationProperties({JiraProperties.class, NotionProperties.class, GithubProperties.class})
 public class WebClientConfig {
 
     private final JiraProperties jiraProperties;
     private final NotionProperties notionProperties;
+    private final GithubProperties githubProperties;
 
     // Jira WebClient
     @Bean
@@ -88,6 +90,33 @@ public class WebClientConfig {
                 .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                 .codecs(configurer -> configurer.defaultCodecs()
                         .maxInMemorySize(notionProperties.getMemory().getMaxInMemorySize()))
+                .filter(logRequest())
+                .filter(logResponse())
+                .build();
+    }
+
+    //==================================================================================================================
+    // GitHub WebClient
+    @Bean
+    public WebClient githubWebClient() {
+
+        HttpClient httpClient = createHttpClient(
+                "github-connection-pool",
+                githubProperties.getConnection().getMaxConnections(),
+                githubProperties.getConnection().getPendingAcquireTimeout(),
+                githubProperties.getTimeout().getConnect(),
+                githubProperties.getTimeout().getRead(),
+                githubProperties.getTimeout().getWrite()
+        );
+
+        return WebClient.builder()
+                .baseUrl(githubProperties.getBaseUrl())
+                .clientConnector(new ReactorClientHttpConnector(httpClient))
+                .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + githubProperties.getToken())
+                .defaultHeader("X-GitHub-Api-Version", githubProperties.getApiVersion())
+                .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .codecs(configurer -> configurer.defaultCodecs()
+                        .maxInMemorySize(githubProperties.getMemory().getMaxInMemorySize()))
                 .filter(logRequest())
                 .filter(logResponse())
                 .build();

@@ -1,0 +1,319 @@
+package com.team.catchup.github.service;
+
+import com.team.catchup.github.dto.internal.*;
+import com.team.catchup.github.dto.response.SyncCount;
+import com.team.catchup.github.entity.*;
+import com.team.catchup.github.mapper.*;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.stereotype.Service;
+import static com.team.catchup.common.config.RabbitConfig.*;
+
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class GithubProcessor {
+
+    private final GithubApiService githubApiService;
+    private final GithubPersistenceService persistenceService;
+    private final RabbitTemplate rabbitTemplate;
+
+    private final GithubRepositoryMapper repositoryMapper;
+    private final GithubCommitMapper commitMapper;
+    private final GithubPullRequestMapper pullRequestMapper;
+    private final GithubIssueMapper issueMapper;
+    private final GithubCommentMapper commentMapper;
+    private final GithubReviewMapper reviewMapper;
+    private final GithubFileChangeMapper fileChangeMapper;
+
+    /**
+     * Repository 메타데이터 동기화
+     */
+    public GithubRepository processRepository(String owner, String repo) {
+        log.info("[GITHUB][PROCESSOR] Processing repository: {}/{}", owner, repo);
+
+        try {
+            return githubApiService.getRepository(owner, repo)
+                    .map(repositoryMapper::toEntity)
+                    .map(repository -> {
+                        GithubRepository saved = persistenceService.saveRepository(repository);
+                        log.info("[GITHUB][PROCESSOR] Repository saved: {}/{}", owner, repo);
+                        return saved;
+                    })
+                    .block();
+        } catch (Exception e) {
+            log.error("[GITHUB][PROCESSOR] Failed to process repository: {}/{}", owner, repo, e);
+            return null;
+        }
+    }
+
+    /**
+     * Commits 동기화
+     */
+    public SyncCount processCommits(GithubRepository repository, String owner, String repo, String since) {
+        log.info("[GITHUB][PROCESSOR] Processing commits for {}/{}", owner, repo);
+
+        try {
+            return githubApiService.getCommits(owner, repo, since)
+                    .flatMap(commitNode ->
+                        githubApiService.getCommit(owner, repo, commitNode.get("sha").asText())
+                    )
+                    .map(commitDetailNode -> commitMapper.toEntity(commitDetailNode, repository))
+                    .collectList()
+                    .map(commits -> {
+                        int saved = persistenceService.saveAllCommits(commits);
+                        publishCommitMessages(commits);
+                        return SyncCount.of(commits.size(), saved);
+                    })
+                    .block();
+        } catch (Exception e) {
+            log.error("[GITHUB][PROCESSOR] Failed to process commits for {}/{}", owner, repo, e);
+            return SyncCount.empty();
+        }
+    }
+
+    /**
+     * Pull Requests 동기화
+     */
+    public SyncCount processPullRequests(GithubRepository repository, String owner, String repo, String state, String since) {
+        log.info("[GITHUB][PROCESSOR] Processing pull requests for {}/{}", owner, repo);
+
+        try {
+            return githubApiService.getPullRequests(owner, repo, state, since)
+                    .map(prNode -> pullRequestMapper.toEntity(prNode, repository))
+                    .collectList()
+                    .map(pullRequests -> {
+                        int saved = persistenceService.saveAllPullRequests(pullRequests);
+                        publishPullRequestMessages(pullRequests);
+                        return SyncCount.of(pullRequests.size(), saved);
+                    })
+                    .block();
+        } catch (Exception e) {
+            log.error("[GITHUB][PROCESSOR] Failed to process pull requests for {}/{}", owner, repo, e);
+            return SyncCount.empty();
+        }
+    }
+
+    /**
+     * Issues 동기화
+     */
+    public SyncCount processIssues(GithubRepository repository, String owner, String repo, String state, String since) {
+        log.info("[GITHUB][PROCESSOR] Processing issues for {}/{}", owner, repo);
+
+        try {
+            return githubApiService.getIssues(owner, repo, state, since)
+                    .filter(issueNode -> !issueNode.has("pull_request"))
+                    .map(issueNode -> issueMapper.toEntity(issueNode, repository))
+                    .collectList()
+                    .map(issues -> {
+                        int saved = persistenceService.saveAllIssues(issues);
+                        publishIssueMessages(issues);
+                        return SyncCount.of(issues.size(), saved);
+                    })
+                    .block();
+        } catch (Exception e) {
+            log.error("[GITHUB][PROCESSOR] Failed to process issues for {}/{}", owner, repo, e);
+            return SyncCount.empty();
+        }
+    }
+
+    /**
+     * PR Reviews 동기화
+     */
+    public SyncCount processPullRequestReviews(String owner, String repo, int prNumber) {
+        log.info("[GITHUB][PROCESSOR] Processing reviews for PR #{}", prNumber);
+
+        GithubRepository repository = persistenceService.findRepositoryByOwnerAndName(owner, repo);
+        if (repository == null) {
+            log.error("[GITHUB][PROCESSOR] Repository not found: {}/{}", owner, repo);
+            return SyncCount.empty();
+        }
+
+        GithubPullRequest pullRequest = persistenceService.findPullRequestByNumber(repository.getRepositoryId(), prNumber);
+        if (pullRequest == null) {
+            log.error("[GITHUB][PROCESSOR] Pull request not found: #{}", prNumber);
+            return SyncCount.empty();
+        }
+
+        try {
+            return githubApiService.getPullRequestReviews(owner, repo, prNumber)
+                    .map(reviewNode -> reviewMapper.toEntity(reviewNode, repository, pullRequest))
+                    .collectList()
+                    .map(reviews -> {
+                        int saved = persistenceService.saveAllReviews(reviews);
+                        publishReviewMessages(reviews);
+                        return SyncCount.of(reviews.size(), saved);
+                    })
+                    .block();
+        } catch (Exception e) {
+            log.error("[GITHUB][PROCESSOR] Failed to process reviews", e);
+            return SyncCount.empty();
+        }
+    }
+
+    /**
+     * Issue Comments 동기화
+     */
+    public SyncCount processIssueComments(String owner, String repo, int issueNumber) {
+        log.info("[GITHUB][PROCESSOR] Processing issue comments for #{}", issueNumber);
+
+        GithubRepository repository = persistenceService.findRepositoryByOwnerAndName(owner, repo);
+        if (repository == null) {
+            log.error("[GITHUB][PROCESSOR] Repository not found: {}/{}", owner, repo);
+            return SyncCount.empty();
+        }
+
+        GithubIssue issue = persistenceService.findIssueByNumber(repository.getRepositoryId(), issueNumber);
+        if (issue == null) {
+            log.error("[GITHUB][PROCESSOR] Issue not found: #{}", issueNumber);
+            return SyncCount.empty();
+        }
+
+        try {
+            return githubApiService.getIssueComments(owner, repo, issueNumber)
+                    .map(commentNode -> commentMapper.toIssueCommentEntity(commentNode, repository, issue))
+                    .collectList()
+                    .map(comments -> {
+                        int saved = persistenceService.saveAllComments(comments);
+                        publishCommentMessages(comments);
+                        return SyncCount.of(comments.size(), saved);
+                    })
+                    .block();
+        } catch (Exception e) {
+            log.error("[GITHUB][PROCESSOR] Failed to process issue comments", e);
+            return SyncCount.empty();
+        }
+    }
+
+    /**
+     * PR Review Comments 동기화
+     */
+    public SyncCount processPullRequestComments(String owner, String repo, int prNumber) {
+        log.info("[GITHUB][PROCESSOR] Processing PR review comments for #{}", prNumber);
+
+        GithubRepository repository = persistenceService.findRepositoryByOwnerAndName(owner, repo);
+        if (repository == null) {
+            log.error("[GITHUB][PROCESSOR] Repository not found: {}/{}", owner, repo);
+            return SyncCount.empty();
+        }
+
+        GithubPullRequest pullRequest = persistenceService.findPullRequestByNumber(repository.getRepositoryId(), prNumber);
+        if (pullRequest == null) {
+            log.error("[GITHUB][PROCESSOR] Pull request not found: #{}", prNumber);
+            return SyncCount.empty();
+        }
+
+        try {
+            return githubApiService.getPullRequestReviewComments(owner, repo, prNumber)
+                    .map(commentNode -> commentMapper.toReviewCommentEntity(commentNode, repository, pullRequest))
+                    .collectList()
+                    .map(comments -> {
+                        int saved = persistenceService.saveAllComments(comments);
+                        publishCommentMessages(comments);
+                        return SyncCount.of(comments.size(), saved);
+                    })
+                    .block();
+        } catch (Exception e) {
+            log.error("[GITHUB][PROCESSOR] Failed to process PR comments", e);
+            return SyncCount.empty();
+        }
+    }
+
+    /**
+     * PR File Changes 동기화
+     */
+    public SyncCount processPullRequestFileChanges(String owner, String repo, int prNumber) {
+        log.info("[GITHUB][PROCESSOR] Processing file changes for PR #{}", prNumber);
+
+        GithubRepository repository = persistenceService.findRepositoryByOwnerAndName(owner, repo);
+        if (repository == null) {
+            log.error("[GITHUB][PROCESSOR] Repository not found: {}/{}", owner, repo);
+            return SyncCount.empty();
+        }
+
+        GithubPullRequest pullRequest = persistenceService.findPullRequestByNumber(repository.getRepositoryId(), prNumber);
+        if (pullRequest == null) {
+            log.error("[GITHUB][PROCESSOR] Pull request not found: #{}", prNumber);
+            return SyncCount.empty();
+        }
+
+        try {
+            return githubApiService.getPullRequestFiles(owner, repo, prNumber)
+                    .map(fileNode -> fileChangeMapper.toEntityFromPullRequest(fileNode, repository, pullRequest))
+                    .collectList()
+                    .map(fileChanges -> {
+                        int saved = persistenceService.saveAllFileChanges(fileChanges);
+                        return SyncCount.of(fileChanges.size(), saved);
+                    })
+                    .block();
+        } catch (Exception e) {
+            log.error("[GITHUB][PROCESSOR] Failed to process file changes", e);
+            return SyncCount.empty();
+        }
+    }
+
+    // ==================== RabbitMQ Publishing ====================
+
+    private void publishCommitMessages(List<GithubCommit> commits) {
+        try {
+            log.info("[GITHUB][MQ] Publishing {} commits to RabbitMQ", commits.size());
+            for (GithubCommit commit : commits) {
+                GithubCommitRabbitRequest request = GithubCommitRabbitRequest.from(commit);
+                rabbitTemplate.convertAndSend(GITHUB_COMMIT_QUEUE, request);
+            }
+        } catch (Exception e) {
+            log.error("[GITHUB][MQ] Failed to publish commit messages", e);
+        }
+    }
+
+    private void publishPullRequestMessages(List<GithubPullRequest> pullRequests) {
+        try {
+            log.info("[GITHUB][MQ] Publishing {} pull requests to RabbitMQ", pullRequests.size());
+            for (GithubPullRequest pr : pullRequests) {
+                GithubPullRequestRabbitRequest request = GithubPullRequestRabbitRequest.from(pr);
+                rabbitTemplate.convertAndSend(GITHUB_PULL_REQUEST_QUEUE, request);
+            }
+        } catch (Exception e) {
+            log.error("[GITHUB][MQ] Failed to publish pull request messages", e);
+        }
+    }
+
+    private void publishIssueMessages(List<GithubIssue> issues) {
+        try {
+            log.info("[GITHUB][MQ] Publishing {} issues to RabbitMQ", issues.size());
+            for (GithubIssue issue : issues) {
+                GithubIssueRabbitRequest request = GithubIssueRabbitRequest.from(issue);
+                rabbitTemplate.convertAndSend(GITHUB_ISSUE_QUEUE, request);
+            }
+        } catch (Exception e) {
+            log.error("[GITHUB][MQ] Failed to publish issue messages", e);
+        }
+    }
+
+    private void publishCommentMessages(List<GithubComment> comments) {
+        try {
+            log.info("[GITHUB][MQ] Publishing {} comments to RabbitMQ", comments.size());
+            for (GithubComment comment : comments) {
+                GithubCommentRabbitRequest request = GithubCommentRabbitRequest.from(comment);
+                rabbitTemplate.convertAndSend(GITHUB_COMMENT_QUEUE, request);
+            }
+        } catch (Exception e) {
+            log.error("[GITHUB][MQ] Failed to publish comment messages", e);
+        }
+    }
+
+    private void publishReviewMessages(List<GithubReview> reviews) {
+        try {
+            log.info("[GITHUB][MQ] Publishing {} reviews to RabbitMQ", reviews.size());
+            for (GithubReview review : reviews) {
+                GithubReviewRabbitRequest request = GithubReviewRabbitRequest.from(review);
+                rabbitTemplate.convertAndSend(GITHUB_REVIEW_QUEUE, request);
+            }
+        } catch (Exception e) {
+            log.error("[GITHUB][MQ] Failed to publish review messages", e);
+        }
+    }
+}
