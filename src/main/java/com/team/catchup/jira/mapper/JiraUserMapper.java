@@ -1,6 +1,6 @@
 package com.team.catchup.jira.mapper;
 
-import com.team.catchup.jira.dto.response.JiraUserResponse;
+import com.team.catchup.jira.dto.external.JiraUserApiResponse;
 import com.team.catchup.jira.entity.JiraUser;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class JiraUserMapper {
 
-    public JiraUser toEntity(JiraUserResponse response) {
+    public JiraUser toEntity(JiraUserApiResponse response) {
         try {
             // avatarUrls에서 48x48 이미지 URL 추출
             String avatarUrl = response.avatarUrls().avatarUrl();
