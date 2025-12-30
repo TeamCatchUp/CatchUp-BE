@@ -18,7 +18,7 @@ import java.util.List;
 public class JiraProcessor {
 
     private final JiraApiService jiraApiService;
-    private final JiraSavingService jiraSavingService;
+    private final JiraPersistenceService jiraPersistenceService;
 
     private final JiraProjectMapper jiraProjectMapper;
     private final JiraUserMapper jiraUserMapper;
@@ -51,7 +51,7 @@ public class JiraProcessor {
                     .toList();
 
             totalFetched += entities.size();
-            totalSaved += jiraSavingService.saveAllProjects(entities);
+            totalSaved += jiraPersistenceService.saveAllProjects(entities);
 
             hasMore = !Boolean.TRUE.equals(response.isLast());
             if (hasMore) {
@@ -86,7 +86,7 @@ public class JiraProcessor {
                     .toList();
 
             totalFetched += entities.size();
-            totalSaved += jiraSavingService.saveAllUsers(entities);
+            totalSaved += jiraPersistenceService.saveAllUsers(entities);
 
             if (responses.size() < maxResults) {
                 hasMore = false;
@@ -115,7 +115,7 @@ public class JiraProcessor {
                 .map(issueTypeMapper::toEntity)
                 .toList();
 
-        int totalSaved = jiraSavingService.saveAllIssueTypes(entities);
+        int totalSaved = jiraPersistenceService.saveAllIssueTypes(entities);
 
         log.info("[JIRA PROCESSOR] IssueType Sync Completed | Fetched: {}, Saved: {}", entities.size(), totalSaved);
         return SyncCount.of(entities.size(), totalSaved);
@@ -168,7 +168,7 @@ public class JiraProcessor {
                     .map(issueMetaDataMapper::toEntity)
                     .toList();
             totalIssuesFetched += issueEntities.size();
-            totalIssuesSaved += jiraSavingService.saveAllIssues(issueEntities);
+            totalIssuesSaved += jiraPersistenceService.saveAllIssues(issueEntities);
 
             // IssueLinks & Attachments
             for (IssueMetadataApiResponse.JiraIssue jiraIssue : response.issues()) {
@@ -211,14 +211,14 @@ public class JiraProcessor {
 
             // Link Type 저장
             IssueLinkType linkType = issueLinkMapper.linkTypeToEntity(linkDto.type());
-            jiraSavingService.saveLinkTypeIfNotExists(linkType);
+            jiraPersistenceService.saveLinkTypeIfNotExists(linkType);
 
             Integer linkId = Integer.parseInt(linkDto.id());
-            if (jiraSavingService.existsIssueLinkById(linkId)) {
+            if (jiraPersistenceService.existsIssueLinkById(linkId)) {
                 return updateExistingIssueLink(linkDto, linkId, linkTypeId);
             } else {
                 IssueLink issueLink = issueLinkMapper.issueLinkToEntity(linkDto);
-                return jiraSavingService.saveIssueLinkIfNotExists(issueLink);
+                return jiraPersistenceService.saveIssueLinkIfNotExists(issueLink);
             }
         } catch (Exception e) {
             log.error("[JIRA][ISSUE LINK] Failed Saving - linkId: {}, error: {}", linkDto.id(), e.getMessage());
@@ -228,7 +228,7 @@ public class JiraProcessor {
 
     private boolean updateExistingIssueLink(IssueMetadataApiResponse.IssueLink linkDto,
                                             Integer linkId, Integer linkTypeId) {
-        IssueLink existingLink = jiraSavingService.findIssueLinkById(linkId).orElse(null);
+        IssueLink existingLink = jiraPersistenceService.findIssueLinkById(linkId).orElse(null);
         if (existingLink == null) {
             return false;
         }
@@ -238,15 +238,15 @@ public class JiraProcessor {
 
         if (linkDto.inwardIssue() != null && finalInward == null) {
             Integer inwardId = Integer.parseInt(linkDto.inwardIssue().id());
-            finalInward = jiraSavingService.findIssueById(inwardId).orElse(null);
+            finalInward = jiraPersistenceService.findIssueById(inwardId).orElse(null);
         }
 
         if (linkDto.outwardIssue() != null && finalOutward == null) {
             Integer outwardId = Integer.parseInt(linkDto.outwardIssue().id());
-            finalOutward = jiraSavingService.findIssueById(outwardId).orElse(null);
+            finalOutward = jiraPersistenceService.findIssueById(outwardId).orElse(null);
         }
 
-        IssueLinkType linkType = jiraSavingService.findLinkTypeById(linkTypeId).orElse(null);
+        IssueLinkType linkType = jiraPersistenceService.findLinkTypeById(linkTypeId).orElse(null);
         if (linkType == null) {
             return false;
         }
@@ -258,13 +258,13 @@ public class JiraProcessor {
                 .linkType(linkType)
                 .build();
 
-        return jiraSavingService.updateIssueLink(updatedLink);
+        return jiraPersistenceService.updateIssueLink(updatedLink);
     }
 
     private boolean processAttachment(IssueMetadataApiResponse.IssueAttachment attachmentDto, Integer issueId) {
         try {
             IssueAttachment attachment = issueAttachmentMapper.toEntity(attachmentDto, issueId);
-            return jiraSavingService.saveAttachmentIfNotExists(attachment);
+            return jiraPersistenceService.saveAttachmentIfNotExists(attachment);
         } catch (Exception e) {
             log.error("[JIRA][ATTACHMENT] Failed Saving - attachmentId: {}, error: {}", attachmentDto.id(), e.getMessage());
             return false;
