@@ -1,6 +1,6 @@
 package com.team.catchup.jira.mapper;
 
-import com.team.catchup.jira.dto.response.IssueMetaDataResponse;
+import com.team.catchup.jira.dto.external.IssueMetadataApiResponse;
 import com.team.catchup.jira.entity.IssueLink;
 import com.team.catchup.jira.entity.IssueLinkType;
 import com.team.catchup.jira.entity.IssueMetadata;
@@ -15,11 +15,10 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class IssueLinkMapper {
 
-    // ✅ Repository 주입 (연관관계 조회용)
     private final IssueLinkTypeRepository issueLinkTypeRepository;
     private final IssueMetaDataRepository issueMetaDataRepository;
 
-    public IssueLinkType linkTypeToEntity(IssueMetaDataResponse.LinkType linkType) {
+    public IssueLinkType linkTypeToEntity(IssueMetadataApiResponse.LinkType linkType) {
         try {
             return IssueLinkType.builder()
                     .linkTypeId(Integer.parseInt(linkType.id()))
@@ -35,25 +34,10 @@ public class IssueLinkMapper {
     }
 
 
-    public IssueLink issueLinkToEntity(IssueMetaDataResponse.IssueLink issueLink) {
+    public IssueLink issueLinkToEntity(IssueMetadataApiResponse.IssueLink issueLink) {
         try {
-            IssueMetadata inwardIssue = null;
-            if (issueLink.inwardIssue() != null) {
-                Integer inwardIssueId = Integer.parseInt(issueLink.inwardIssue().id());
-                inwardIssue = issueMetaDataRepository.findById(inwardIssueId).orElse(null);
-                if (inwardIssue == null) {
-                    log.warn("Inward Issue not found: {}", inwardIssueId);
-                }
-            }
-
-            IssueMetadata outwardIssue = null;
-            if (issueLink.outwardIssue() != null) {
-                Integer outwardIssueId = Integer.parseInt(issueLink.outwardIssue().id());
-                outwardIssue = issueMetaDataRepository.findById(outwardIssueId).orElse(null);
-                if (outwardIssue == null) {
-                    log.warn("Outward Issue not found: {}", outwardIssueId);
-                }
-            }
+            IssueMetadata inwardIssue = findIssue(issueLink.inwardIssue());
+            IssueMetadata outwardIssue = findIssue(issueLink.outwardIssue());
 
             Integer linkTypeId = Integer.parseInt(issueLink.type().id());
             IssueLinkType linkType = issueLinkTypeRepository.findById(linkTypeId)
@@ -70,5 +54,20 @@ public class IssueLinkMapper {
             log.error("Failed to map IssueLink: {}", issueLink.id(), e);
             throw new RuntimeException("IssueLink mapping failed", e);
         }
+    }
+
+    private IssueMetadata findIssue(IssueMetadataApiResponse.LinkedIssue linkedIssue) {
+        if(linkedIssue == null) {
+            return null;
+        }
+
+        Integer issueId = Integer.parseInt(linkedIssue.id());
+        IssueMetadata issue = issueMetaDataRepository.findById(issueId).orElse(null);
+
+        if(issue == null) {
+            log.warn("Issue not found: {}", issueId);
+        }
+
+        return issue;
     }
 }

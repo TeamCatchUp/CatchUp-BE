@@ -1,4 +1,4 @@
-package com.team.catchup.jira.dto.response;
+package com.team.catchup.jira.dto.external;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -6,7 +6,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-public record IssueMetaDataResponse (
+public record IssueMetadataApiResponse(
         List<JiraIssue> issues,
 
         @JsonProperty("nextPageToken")

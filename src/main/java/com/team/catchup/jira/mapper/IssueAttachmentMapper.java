@@ -1,6 +1,6 @@
 package com.team.catchup.jira.mapper;
 
-import com.team.catchup.jira.dto.response.IssueMetaDataResponse;
+import com.team.catchup.jira.dto.external.IssueMetadataApiResponse;
 import com.team.catchup.jira.entity.IssueAttachment;
 import com.team.catchup.jira.entity.IssueMetadata;
 import com.team.catchup.jira.repository.IssueMetaDataRepository;
@@ -24,19 +24,19 @@ public class IssueAttachmentMapper {
     /**
      * Issue Attachment DTO -> Entity
      */
-    public IssueAttachment toEntity(IssueMetaDataResponse.IssueAttachment attachmentResponse, Integer issueId) {
+    public IssueAttachment toEntity(IssueMetadataApiResponse.IssueAttachment attachmentResponse, Integer issueId) {
         try{
             IssueMetadata issue = issueMetaDataRepository.findById(issueId)
                     .orElseThrow(() -> new RuntimeException("Issue Not Found :" + issueId));
 
             return IssueAttachment.builder()
-                    .id(parseIntegerSafely(attachmentResponse.id()))
+                    .id(parseInteger(attachmentResponse.id()))
                     .issueId(issue)
                     .fileName(attachmentResponse.filename())
                     .authorId(attachmentResponse.author().id() != null ?
                             attachmentResponse.author().id() : null)
-                    .createdAt(parseDateTimeSafely(attachmentResponse.created()))
-                    .size(parseLongSafely(attachmentResponse.size()))
+                    .createdAt(parseDateTime(attachmentResponse.created()))
+                    .size(parseLong(attachmentResponse.size()))
                     .mimetype(attachmentResponse.mimetype())
                     .downloadUrl(attachmentResponse.content())
                     .thumbnailUrl(attachmentResponse.thumbnail())
@@ -48,7 +48,7 @@ public class IssueAttachmentMapper {
 
     }
 
-    private Integer parseIntegerSafely(String value) {
+    private Integer parseInteger(String value) {
         if (value == null || value.isBlank()) {
             return null;
         }
@@ -60,7 +60,7 @@ public class IssueAttachmentMapper {
         }
     }
 
-    private Long parseLongSafely(String value) {
+    private Long parseLong(String value) {
         if (value == null || value.isBlank()) {
             return null;
         }
@@ -72,7 +72,7 @@ public class IssueAttachmentMapper {
         }
     }
 
-    private LocalDateTime parseDateTimeSafely(String dateString) {
+    private LocalDateTime parseDateTime(String dateString) {
         if (dateString == null || dateString.isBlank()) {
             return null;
         }

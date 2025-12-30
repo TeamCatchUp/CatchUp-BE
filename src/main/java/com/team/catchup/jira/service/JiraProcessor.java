@@ -1,7 +1,9 @@
 package com.team.catchup.jira.service;
 
-import com.team.catchup.jira.dto.IssueSyncResult;
-import com.team.catchup.jira.dto.response.*;
+import com.team.catchup.common.sse.dto.SyncCount;
+import com.team.catchup.jira.dto.response.IssueSyncResult;
+import com.team.catchup.jira.dto.external.*;
+import com.team.catchup.jira.dto.response.ProjectSyncResult;
 import com.team.catchup.jira.entity.*;
 import com.team.catchup.jira.mapper.*;
 import com.team.catchup.meilisearch.listener.event.SyncedIssueMetaDataEvent;
@@ -9,14 +11,13 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class JiraTransactionalSyncService {
+public class JiraProcessor {
 
     private final JiraApiService jiraApiService;
     private final JiraSavingService jiraSavingService;
@@ -29,9 +30,8 @@ public class JiraTransactionalSyncService {
     private final IssueAttachmentMapper issueAttachmentMapper;
     private final ApplicationEventPublisher applicationEventPublisher;
 
-    @Transactional
     public SyncCount syncProjects() {
-        log.info("[JIRA][PROJECT SYNC] STARTED");
+        log.info("[JIRA PROCESSOR] Project Sync Started");
 
         int startAt = 0;
         int maxResults = 100;
@@ -40,11 +40,12 @@ public class JiraTransactionalSyncService {
         boolean hasMore = true;
 
         while (hasMore) {
-            JiraProjectResponse response = jiraApiService
+            JiraProjectApiResponse response = jiraApiService
                     .fetchProjects(startAt, maxResults)
                     .block();
 
             if (response == null || response.values() == null || response.values().isEmpty()) {
+                log.warn("[JIRA PROCESSOR] Empty Response");
                 break;
             }
 
@@ -53,7 +54,7 @@ public class JiraTransactionalSyncService {
                     .toList();
 
             totalFetched += entities.size();
-            totalSaved += jiraSavingService.saveAllProjectsIfNotExists(entities);
+            totalSaved += jiraSavingService.saveAllProjects(entities);
 
             hasMore = !Boolean.TRUE.equals(response.isLast());
             if (hasMore) {
@@ -61,13 +62,12 @@ public class JiraTransactionalSyncService {
             }
         }
 
-        log.info("[JIRA][PROJECT SYNC] SUCCESS | Fetched: {}, Saved: {}", totalFetched, totalSaved);
+        log.info("[JIRA PROCESSOR] Project Sync Completed | Fetched: {}, Saved: {}", totalFetched, totalSaved);
         return SyncCount.of(totalFetched, totalSaved);
     }
-
-    @Transactional
+    // =================================================================================================================
     public SyncCount syncUsers() {
-        log.info("[JIRA][USER SYNC] STARTED");
+        log.info("[JIRA PROCESSOR] User Sync Started");
 
         int startAt = 0;
         int maxResults = 100;
@@ -76,7 +76,7 @@ public class JiraTransactionalSyncService {
         boolean hasMore = true;
 
         while (hasMore) {
-            List<JiraUserResponse> responses = jiraApiService
+            List<JiraUserApiResponse> responses = jiraApiService
                     .fetchUsers(startAt, maxResults)
                     .block();
 
@@ -89,7 +89,7 @@ public class JiraTransactionalSyncService {
                     .toList();
 
             totalFetched += entities.size();
-            totalSaved += jiraSavingService.saveAllUsersIfNotExists(entities);
+            totalSaved += jiraSavingService.saveAllUsers(entities);
 
             if (responses.size() < maxResults) {
                 hasMore = false;
@@ -98,15 +98,14 @@ public class JiraTransactionalSyncService {
             }
         }
 
-        log.info("[JIRA][USER SYNC] SUCCESS | Fetched: {}, Saved: {}", totalFetched, totalSaved);
+        log.info("[JIRA PROCESSOR] User Sync Completed | Fetched: {}, Saved: {}", totalFetched, totalSaved);
         return SyncCount.of(totalFetched, totalSaved);
     }
 
-    @Transactional
     public SyncCount syncIssueTypes() {
-        log.info("[JIRA][ISSUE TYPE SYNC] STARTED");
+        log.info("[JIRA PROCESSOR] IssueType Sync Started");
 
-        List<IssueTypeResponse> responses = jiraApiService
+        List<IssueTypeApiResponse> responses = jiraApiService
                 .fetchIssueTypes()
                 .block();
 
@@ -119,28 +118,27 @@ public class JiraTransactionalSyncService {
                 .map(issueTypeMapper::toEntity)
                 .toList();
 
-        int totalSaved = jiraSavingService.saveAllIssueTypesIfNotExists(entities);
+        int totalSaved = jiraSavingService.saveAllIssueTypes(entities);
 
-        log.info("[JIRA][ISSUE TYPE SYNC] SUCCESS | Fetched: {}, Saved: {}", entities.size(), totalSaved);
+        log.info("[JIRA PROCESSOR] IssueType Sync Completed | Fetched: {}, Saved: {}", entities.size(), totalSaved);
         return SyncCount.of(entities.size(), totalSaved);
     }
 
-    @Transactional
     public ProjectSyncResult syncSingleProjectIssue(String projectKey) {
         log.info("[JIRA][PROJECT ISSUE SYNC] projectKey: {}", projectKey);
 
         try {
             IssueSyncResult issueResult = syncIssuesForProject(projectKey);
 
-            log.info("[JIRA][PROJECT ISSUE SYNC] SUCCESS | projectKey: {}", projectKey);
+            log.info("[JIRA PROCESSOR] Issue Sync Completed | Project Key: {}", projectKey);
             return ProjectSyncResult.success(
                     projectKey,
-                    issueResult.getIssues(),
-                    issueResult.getIssueLinks(),
-                    issueResult.getAttachments()
+                    issueResult.issues(),
+                    issueResult.issueLinks(),
+                    issueResult.attachments()
             );
         } catch (Exception e) {
-            log.error("[JIRA][PROJECT ISSUE SYNC] FAILED | projectKey: {}", projectKey, e);
+            log.error("[JIRA PROCESSOR] Project Issue Sync Failed - projectKey: {}", projectKey, e);
             return ProjectSyncResult.failure(projectKey, e.getMessage());
         }
     }
@@ -159,11 +157,12 @@ public class JiraTransactionalSyncService {
         int totalAttachmentsSaved = 0;
 
         while (hasMore) {
-            IssueMetaDataResponse response = jiraApiService
-                    .fetchIssues(projectKey, nextPageToken, 10, true)
+            IssueMetadataApiResponse response = jiraApiService
+                    .fetchIssues(projectKey, nextPageToken, 1000, true)
                     .block();
 
             if (response == null || response.issues() == null || response.issues().isEmpty()) {
+                log.warn("[JIRA PROCESSOR] Empty Response for Project Key: {}", projectKey);
                 break;
             }
 
@@ -172,18 +171,18 @@ public class JiraTransactionalSyncService {
                     .map(issueMetaDataMapper::toEntity)
                     .toList();
             totalIssuesFetched += issueEntities.size();
-            totalIssuesSaved += jiraSavingService.saveAllIssuesIfNotExists(issueEntities);
+            totalIssuesSaved += jiraSavingService.saveAllIssues(issueEntities);
 
             // MeiliSearch Document 변환 및 생성 이벤트 발행
             applicationEventPublisher.publishEvent(new SyncedIssueMetaDataEvent(response));
 
             // IssueLinks & Attachments
-            for (IssueMetaDataResponse.JiraIssue jiraIssue : response.issues()) {
+            for (IssueMetadataApiResponse.JiraIssue jiraIssue : response.issues()) {
                 // Issue Links
                 if (jiraIssue.fields().issueLinks() != null) {
-                    for (IssueMetaDataResponse.IssueLink linkDto : jiraIssue.fields().issueLinks()) {
+                    for (IssueMetadataApiResponse.IssueLink linkDto : jiraIssue.fields().issueLinks()) {
                         totalLinksFetched++;
-                        if (saveIssueLink(linkDto)) {
+                        if (processIssueLink(linkDto)) {
                             totalLinksSaved++;
                         }
                     }
@@ -192,9 +191,9 @@ public class JiraTransactionalSyncService {
                 // Attachments
                 if (jiraIssue.fields().attachments() != null) {
                     Integer issueId = Integer.parseInt(jiraIssue.id());
-                    for (IssueMetaDataResponse.IssueAttachment attachmentDto : jiraIssue.fields().attachments()) {
+                    for (IssueMetadataApiResponse.IssueAttachment attachmentDto : jiraIssue.fields().attachments()) {
                         totalAttachmentsFetched++;
-                        if (saveAttachment(attachmentDto, issueId)) {
+                        if (processAttachment(attachmentDto, issueId)) {
                             totalAttachmentsSaved++;
                         }
                     }
@@ -205,14 +204,14 @@ public class JiraTransactionalSyncService {
             nextPageToken = response.nextPageToken();
         }
 
-        return IssueSyncResult.builder()
-                .issues(SyncCount.of(totalIssuesFetched, totalIssuesSaved))
-                .issueLinks(SyncCount.of(totalLinksFetched, totalLinksSaved))
-                .attachments(SyncCount.of(totalAttachmentsFetched, totalAttachmentsSaved))
-                .build();
+        return IssueSyncResult.of(
+                SyncCount.of(totalIssuesFetched, totalIssuesSaved),
+                SyncCount.of(totalLinksFetched, totalLinksSaved),
+                SyncCount.of(totalAttachmentsFetched, totalAttachmentsSaved)
+        );
     }
 
-    private boolean saveIssueLink(IssueMetaDataResponse.IssueLink linkDto) {
+    private boolean processIssueLink(IssueMetadataApiResponse.IssueLink linkDto) {
         try {
             Integer linkTypeId = Integer.parseInt(linkDto.type().id());
 
@@ -233,7 +232,7 @@ public class JiraTransactionalSyncService {
         }
     }
 
-    private boolean updateExistingIssueLink(IssueMetaDataResponse.IssueLink linkDto,
+    private boolean updateExistingIssueLink(IssueMetadataApiResponse.IssueLink linkDto,
                                             Integer linkId, Integer linkTypeId) {
         IssueLink existingLink = jiraSavingService.findIssueLinkById(linkId).orElse(null);
         if (existingLink == null) {
@@ -268,7 +267,7 @@ public class JiraTransactionalSyncService {
         return jiraSavingService.updateIssueLink(updatedLink);
     }
 
-    private boolean saveAttachment(IssueMetaDataResponse.IssueAttachment attachmentDto, Integer issueId) {
+    private boolean processAttachment(IssueMetadataApiResponse.IssueAttachment attachmentDto, Integer issueId) {
         try {
             IssueAttachment attachment = issueAttachmentMapper.toEntity(attachmentDto, issueId);
             return jiraSavingService.saveAttachmentIfNotExists(attachment);

@@ -1,6 +1,6 @@
 package com.team.catchup.jira.dto;
 
-public enum SyncStep {
+public enum JiraSyncStep {
     PROJECTS,
     USERS,
     ISSUE_TYPES,
