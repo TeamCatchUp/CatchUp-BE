@@ -18,13 +18,14 @@ public class SyncEventListener {
     @EventListener
     @Async
     public void handleSyncEvent(SyncEvent event) {
-        log.info("[SSE] Event Received | userId :{}, target :{}, type :{}",
-                event.getUserId(), event.getTarget(), event.getType());
+        log.info("[SSE EVENT] Received - userId: {}, target: {}, type: {}",
+                event.getUserId(),
+                event.getMessage().target(),
+                event.getMessage().type());
 
         notificationService.sendToClient(
                 event.getUserId(),
-                event.getType(),
-                event.getData()
+                event.getMessage()
         );
     }
 }

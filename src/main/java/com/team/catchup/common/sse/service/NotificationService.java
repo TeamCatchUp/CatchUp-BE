@@ -1,6 +1,8 @@
 package com.team.catchup.common.sse.service;
 
 import com.team.catchup.common.sse.dto.SseEventType;
+import com.team.catchup.common.sse.dto.SseMessage;
+import com.team.catchup.common.sse.dto.SyncTarget;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -24,40 +26,56 @@ public class NotificationService {
         emitters.put(userId, emitter);
 
         emitter.onCompletion(() -> {
-            log.info("[SSE] Connection Closed");
-        });
-        emitter.onTimeout(() -> {
-            log.info("[SSE] Connection Timeout | userId : {}", userId);
-            emitters.remove(userId);
-        });
-        emitter.onError((e) -> {
-            log.error("[SSE] Connection Error | userId : {}", userId, e);
+            log.info("[SSE] Connection completed - userId: {}", userId);
             emitters.remove(userId);
         });
 
-        sendToClient(userId, SseEventType.CONNECT, "Successfully Connected | userId :" + userId);
+        emitter.onTimeout(() -> {
+            log.info("[SSE] Connection timeout - userId: {}", userId);
+            emitters.remove(userId);
+        });
+
+        emitter.onError((e) -> {
+            log.error("[SSE] Connection error - userId: {}", userId, e);
+            emitters.remove(userId);
+        });
+
+        SseMessage<Void> connectMessage = SseMessage.simple(
+                SyncTarget.MESSAGE,
+                SseEventType.CONNECT,
+                "Successfully connected - userId: " + userId
+        );
+        sendToClient(userId, connectMessage);
 
         return emitter;
     }
 
-    public void sendToClient(String userId, SseEventType type, Object data) {
+    public void sendToClient(String userId, SseMessage<?> message) {
         SseEmitter emitter = emitters.get(userId);
 
-        if(emitter != null) {
-            try {
-                emitter.send(SseEmitter.event()
-                        .name(type.name())
-                        .data(data));
+        if (emitter == null) {
+            log.warn("[SSE] User not found - userId: {}", userId);
+            return;
+        }
 
-                if(type == SseEventType.COMPLETED || type == SseEventType.FAILED) {
-                    emitter.complete();
-                }
-            } catch (IOException e) {
-                log.error("[SSE] Failed to Send Event | userId : {}, type: {}", userId, type);
+        try {
+            emitter.send(SseEmitter.event()
+                    .name(message.type().name())
+                    .data(message));
+
+            log.debug("[SSE] Message sent - userId: {}, type: {}", userId, message.type());
+
+            // COMPLETED 또는 FAILED 시 연결 종료
+            if (message.type() == SseEventType.COMPLETED || message.type() == SseEventType.FAILED) {
+                emitter.complete();
                 emitters.remove(userId);
+                log.info("[SSE] Connection closed - userId: {}, type: {}", userId, message.type());
             }
-        } else {
-            log.warn("[SSE] User NOT FOUND | userId : {}", userId);
+
+        } catch (IOException e) {
+            log.error("[SSE] Failed to send message - userId: {}, type: {}",
+                    userId, message.type(), e);
+            emitters.remove(userId);
         }
     }
 }
