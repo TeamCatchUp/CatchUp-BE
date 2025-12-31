@@ -5,19 +5,16 @@ import com.meilisearch.sdk.exceptions.MeilisearchException;
 import com.meilisearch.sdk.json.GsonJsonHandler;
 import com.meilisearch.sdk.model.MultiSearchResult;
 import com.meilisearch.sdk.model.Results;
-import com.team.catchup.jira.dto.response.IssueMetaDataResponse;
+import com.team.catchup.jira.dto.external.IssueMetadataApiResponse;
 import com.team.catchup.meilisearch.document.JiraIssueDocument;
 import com.team.catchup.meilisearch.document.MeiliSearchDocument;
 import com.team.catchup.meilisearch.dto.MeiliSearchQueryResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
 import java.util.*;
-import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -47,7 +44,7 @@ public class MeiliSearchService {
             try {
                 String documentsJson = jsonHandler.encode(docs);
                 Index index = meiliSearchClient.index(indexName);
-                log.info("MeiliSearchService][addOrUpdateDocument][indexName: {}, docs: {}", indexName, documentsJson);
+                log.info("[MeiliSearchService][addOrUpdateDocument][indexName: {}, docs: {}", indexName, documentsJson);
                 index.addDocuments(documentsJson);
             } catch (MeilisearchException e) {
                 throw new RuntimeException("[" + indexName + "] 인덱스 문서 추가/갱신 실패", e);
@@ -97,11 +94,11 @@ public class MeiliSearchService {
 
     /**
      * Jira API 응답을 MeiliSearch Document로 변환
-     * @param response IssueMetaDataResponse
+     * @param response IssueMetadataApiResponse
      * @return MeiliSearchDocument 구현체를 담은 리스트
      */
-    public List<MeiliSearchDocument> createDocuments (IssueMetaDataResponse response) {
-        // TODO: API 응답 출처에 따라 유연하게 문서를 생성하도록 수정. 현재는 Jira의 IssueMetaDataResponse만 지원.
+    public List<MeiliSearchDocument> createDocuments(IssueMetadataApiResponse response) {
+        // TODO: API 응답 출처에 따라 유연하게 문서를 생성하도록 수정. 현재는 Jira의 IssueMetadataApiResponse만 지원.
         return response.issues().stream()
                 .map(JiraIssueDocument::from)
                 .collect(Collectors.toList());

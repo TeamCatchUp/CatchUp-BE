@@ -1,4 +1,10 @@
 spring:
+  application:
+    name: catchup
+
+  # ============================================
+  # Security - OAuth2
+  # ============================================
   security:
     oauth2:
       client:
@@ -10,29 +16,74 @@ spring:
               - email
               - profile
 
+  # ============================================
+  # Database - MySQL
+  # ============================================
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: ${SPRING_DATASOURCE_URL}
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/catchup?useSSL=false&serverTimezone=Asia/Seoul&characterEncoding=UTF-8&allowPublicKeyRetrieval=true}
     username: ${SPRING_DATASOURCE_USERNAME}
     password: ${SPRING_DATASOURCE_PASSWORD}
 
   jpa:
     hibernate:
-      ddl-auto: ${JPA_HIBERNATE_DDL_AUTO}
+      ddl-auto: ${JPA_HIBERNATE_DDL_AUTO:create-drop}
     database-platform: org.hibernate.dialect.MySQLDialect
     show-sql: false
     properties:
       hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
         format_sql: true
 
+  # ============================================
+  # Redis
+  # ============================================
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+
+  # ============================================
+  # RabbitMQ
+  # ============================================
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+
+# ============================================
+# Logging
+# ============================================
+logging:
+  level:
+    org.hibernate.SQL: off
+    org.hibernate.type.descriptor.sql.BasicBinder: trace
+
+# ============================================
+# JWT Authentication
+# ============================================
 jwt:
   secret: ${JWT_SECRET}
-  access_expiration: ${JWT_ACCESS_EXPIRATION}
+  access_expiration: ${JWT_ACCESS_EXPIRATION:3600000}
 
+# ============================================
+# MeiliSearch
+# ============================================
 meilisearch:
-  url: ${MEILISEARCH_URL}
-  api-key: ${MEILISEARCH_MASTER_KEY}
+  url: ${MEILISEARCH_URL:http://localhost:7700}
+  api-key: ${MEILISEARCH_API_KEY:masterKey}
 
+# ============================================
+# Jira Integration
+# ============================================
 jira:
   base-url: ${JIRA_BASE_URL}
   email: ${JIRA_USER_EMAIL}
@@ -40,11 +91,48 @@ jira:
 
   connection:
     max-connections: 100
-    pending-acquire-timeout: 45000  # ms
+    pending-acquire-timeout: 45000
   timeout:
-    connect: 10000      # ms
-    response: 60000     # ms
-    read: 60000         # ms
-    write: 60000        # ms
+    connect: 10000
+    response: 60000
+    read: 60000
+    write: 60000
   memory:
-    max-in-memory-size: 2097152  # 2MB (2 * 1024 * 1024)
+    max-in-memory-size: 2097152
+
+# ============================================
+# Notion Integration
+# ============================================
+notion:
+  base-url: https://api.notion.com
+  api-key: ${NOTION_API_KEY}
+  version: ${NOTION_VERSION:2022-06-28}
+
+  connection:
+    max-connections: 100
+    pending-acquire-timeout: 45000
+  timeout:
+    connect: 10000
+    response: 60000
+    read: 60000
+    write: 60000
+  memory:
+    max-in-memory-size: 2097152
+
+# ============================================
+# GitHub Integration
+# ============================================
+github:
+  base-url: https://api.github.com
+  token: ${GITHUB_TOKEN}
+  api-version: ${GITHUB_API_VERSION:2022-11-28}
+
+  connection:
+    max-connections: 100
+    pending-acquire-timeout: 45000
+  timeout:
+    connect: 5000
+    read: 30000
+    write: 30000
+  memory:
+    max-in-memory-size: 10485760
