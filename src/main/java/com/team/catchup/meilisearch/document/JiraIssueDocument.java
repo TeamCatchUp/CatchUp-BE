@@ -1,6 +1,7 @@
 package com.team.catchup.meilisearch.document;
 
-import com.team.catchup.jira.dto.response.IssueMetaDataResponse;
+import com.team.catchup.jira.dto.external.IssueMetadataApiResponse;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -9,6 +10,7 @@ import lombok.Setter;
  */
 @Getter
 @Setter
+@Builder
 public class JiraIssueDocument implements MeiliSearchDocument {
     private String id; // 예) BJDD-72
 
@@ -36,47 +38,46 @@ public class JiraIssueDocument implements MeiliSearchDocument {
 
     /**
      * Jira API 응답을 가공해서 JiraIssueDocument로 변환
-     * @param jiraIssue IssueMetaDataResponse.JiraIssue
+     * @param jiraIssue IssueMetadataApiResponse.JiraIssue
      * @return JiraIssueDocument 객체
      */
-    static public JiraIssueDocument from(IssueMetaDataResponse.JiraIssue jiraIssue) {
+    public static JiraIssueDocument from(IssueMetadataApiResponse.JiraIssue jiraIssue) {
         if (jiraIssue == null){
             return null;
         }
 
-        JiraIssueDocument jiraIssueDocument = new JiraIssueDocument();
+        JiraIssueDocumentBuilder builder = JiraIssueDocument.builder();
 
         // 예) BJDD-72
-        jiraIssueDocument.setId(jiraIssue.key());
+        builder.id(jiraIssue.key());
 
         if (jiraIssue.fields() == null){
             // fields가 없으면 최소한의 정보만 반환
-            return jiraIssueDocument;
+            return builder.build();
         }
 
-        IssueMetaDataResponse.Fields fields = jiraIssue.fields();
-        if (fields == null){
-            return JiraIssueDocument.builder()
-                    .id(jiraIssue.key())
-                    .projectKey(projectKey)
-                    .build();
-        }
+        IssueMetadataApiResponse.Fields fields = jiraIssue.fields();
 
-        jiraIssueDocument.setSummary(fields.summary());
-        jiraIssueDocument.setCreatedAt(fields.issueCreatedAt());
-        jiraIssueDocument.setResolutionDate(fields.resolutionDate());
+        builder.summary(fields.summary());
+        builder.createdAt(fields.issueCreatedAt());
+        builder.resolutionDate(fields.resolutionDate());
+
+        // Description 추출
+        if (fields.description() != null) {
+            builder.description(fields.description().getAllText());
+        }
 
         // Null check
-        jiraIssueDocument.setAssigneeId(
+        builder.assigneeId(
                 fields.assignee() != null ? fields.assignee().id() : null
         );
-        jiraIssueDocument.setCreatorId(
+        builder.creatorId(
                 fields.creator() != null ? fields.creator().id() : null
         );
-        jiraIssueDocument.setReporterId(
+        builder.reporterId(
                 fields.reporter() != null ? fields.reporter().id() : null
         );
 
-        return jiraIssueDocument;
+        return builder.build();
     }
 }
