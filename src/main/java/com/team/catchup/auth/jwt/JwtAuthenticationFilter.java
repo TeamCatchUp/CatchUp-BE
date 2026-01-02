@@ -28,12 +28,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         throws ServletException, IOException {
         String token = resolveToken(request);
 
+        log.debug("추출된 토큰: {}", token);
+
         if (StringUtils.hasText(token) && tokenProvider.validateToken(token)) {
             Authentication authentication = tokenProvider.getAuthentication(token);
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
 
             log.debug("Security Context 인증 정보 저장: {}", authentication.getName());
+        }
+
+        else {
+            log.debug("토큰이 없거나 유효하지 않음.");
         }
 
         filterChain.doFilter(request, response);

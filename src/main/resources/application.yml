@@ -66,6 +66,8 @@ logging:
   level:
     org.hibernate.SQL: off
     org.hibernate.type.descriptor.sql.BasicBinder: trace
+    com.team.catchup: DEBUG
+    org.springframework.security: DEBUG
 
 # ============================================
 # JWT Authentication
@@ -136,3 +138,19 @@ github:
     write: 30000
   memory:
     max-in-memory-size: 10485760
+
+# ============================================
+# FastAPI RAG Server
+# ============================================
+rag:
+  base-url: ${RAG_SERVER_HOST}
+  connection:
+    max-connections: 100
+    pending-acquire-timeout: 45000
+  timeout:
+    connect: 10000
+    response: 60000
+    read: 60000
+    write: 60000
+  memory:
+    max-in-memory-size: 2097152
