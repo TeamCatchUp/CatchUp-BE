@@ -20,13 +20,13 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Authenticate with Docker Registry
-        run: echo "${{ secrets.DOCKER_REGISTRY_PASSWORD }}" | docker login ${{ secrets.DOCKER_REGISTRY_URL }} --username ${{ secrets.DOCKER_REGISTRY_USER_NAME }} --password-stdin
+        run: echo "${{ secrets.DOCKER_REGISTRY_PASSWORD }}" | docker login "${{ secrets.DOCKER_REGISTRY_URL }}" --username "${{ secrets.DOCKER_REGISTRY_USER_NAME }}" --password-stdin
 
       - name: Build Docker Image
-        run: docker build -t ${{ secrets.DOCKER_REGISTRY_URL }}/${{ secrets.DOCKER_IMAGE_NAME }}:${{ github.sha }} .
+        run: docker build -t "${{ secrets.DOCKER_REGISTRY_URL }}/${{ secrets.DOCKER_IMAGE_NAME }}:${{ github.sha }}" .
 
       - name: Push Docker Image
-        run: docker push ${{ secrets.DOCKER_REGISTRY_URL }}/${{ secrets.DOCKER_IMAGE_NAME}}:${{ github.sha }}
+        run: docker push "${{ secrets.DOCKER_REGISTRY_URL }}/${{ secrets.DOCKER_IMAGE_NAME}}:${{ github.sha }}"
 
   deploy:
     name: Deploy to EC2 Server
@@ -46,7 +46,7 @@ jobs:
             cd ~
             
             echo "Removing the previous repository..."
-            rm -rf Catchup-BE
+            rm -rf CatchUp-BE
 
             echo "Cloning the repository..."
             git clone "https://github.com/TeamCatchUp/CatchUp-BE.git"
