@@ -1,3 +1,9 @@
+# ============================================
+# Server Configuration (For Nginx HTTPS)
+# ============================================
+server:
+  forward-headers-strategy: native
+
 spring:
   application:
     name: catchup
@@ -15,7 +21,6 @@ spring:
             scope:
               - email
               - profile
-
   # ============================================
   # Database - MySQL
   # ============================================
@@ -154,3 +159,12 @@ rag:
     write: 60000
   memory:
     max-in-memory-size: 2097152
+
+# ============================================
+# Custom App Config
+# ============================================
+app:
+  base-url: ${SPRING_SERVER_BASE_URL:http://localhost:8080}
+  oauth2:
+    # 기본값은 로컬용, 배포 시 환경변수 OAUTH_REDIRECT_URI로 덮어쓰기
+    redirect-uri: ${app.base-url}/oauth/callback
