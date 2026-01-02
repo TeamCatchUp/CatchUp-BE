@@ -3,6 +3,7 @@ package com.team.catchup.common.config;
 import com.team.catchup.github.config.GithubProperties;
 import com.team.catchup.jira.config.JiraProperties;
 import com.team.catchup.notion.config.NotionProperties;
+import com.team.catchup.rag.config.RagProperties;
 import io.netty.channel.ChannelOption;
 import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.handler.timeout.WriteTimeoutHandler;
@@ -27,12 +28,15 @@ import java.util.concurrent.TimeUnit;
 @Configuration
 @RequiredArgsConstructor
 @Slf4j
-@EnableConfigurationProperties({JiraProperties.class, NotionProperties.class, GithubProperties.class})
+@EnableConfigurationProperties({
+        JiraProperties.class, NotionProperties.class, GithubProperties.class, RagProperties.class
+})
 public class WebClientConfig {
 
     private final JiraProperties jiraProperties;
     private final NotionProperties notionProperties;
     private final GithubProperties githubProperties;
+    private final RagProperties ragProperties;
 
     // Jira WebClient
     @Bean
@@ -122,6 +126,28 @@ public class WebClientConfig {
                 .build();
     }
 
+
+    @Bean
+    public WebClient ragWebClient(){
+
+        log.debug("rag server baseurl: {}", ragProperties.getBaseUrl());
+
+        HttpClient httpClient = createHttpClient(
+                "rag-connection-pool",
+                ragProperties.getConnection().getMaxConnections(),
+                ragProperties.getConnection().getPendingAcquireTimeout(),
+                ragProperties.getTimeout().getConnect(),
+                ragProperties.getTimeout().getRead(),
+                ragProperties.getTimeout().getWrite()
+        );
+
+        return WebClient.builder()
+                .baseUrl(ragProperties.getBaseUrl())
+                .clientConnector(new ReactorClientHttpConnector((httpClient)))
+                .filter(logRequest())
+                .filter(logResponse())
+                .build();
+    }
 
     // WebClient 요청/응답 사이에 끼울 수 있는 인터셉터
     // 이후에 모니터링도 추가하면 좋을 것 같아용

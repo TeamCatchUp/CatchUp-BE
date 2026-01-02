@@ -16,7 +16,6 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 
 @Slf4j
-@Component
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtTokenProvider tokenProvider;
@@ -35,6 +34,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             SecurityContextHolder.getContext().setAuthentication(authentication);
 
             log.debug("Security Context 인증 정보 저장: {}", authentication.getName());
+        }
+
+        else {
+            log.debug("토큰이 없거나 유효하지 않음.");
         }
 
         filterChain.doFilter(request, response);
