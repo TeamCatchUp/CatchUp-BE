@@ -3,6 +3,7 @@ package com.team.catchup.rag.controller;
 import com.team.catchup.rag.dto.UserChatRequest;
 import com.team.catchup.rag.dto.UserChatResponse;
 import com.team.catchup.rag.service.RagService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -17,7 +18,7 @@ public class RagController {
 
     @PostMapping("/api/chat")
     public Mono<ResponseEntity<UserChatResponse>> getChatResponse(
-            @RequestBody UserChatRequest request
+            @Valid @RequestBody UserChatRequest request
             ) {
         return ragService.requestChat(request.query(), request.sessionId())
                 .map(ResponseEntity::ok);
