@@ -1,7 +1,7 @@
 package com.team.catchup.common.sse.listener;
 
 import com.team.catchup.common.sse.event.SyncEvent;
-import com.team.catchup.common.sse.service.NotificationService;
+import com.team.catchup.common.sse.service.SyncNotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -13,14 +13,14 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class SyncEventListener {
 
-    private final NotificationService notificationService;
+    private final SyncNotificationService notificationService;
 
     @EventListener
     @Async
     public void handleSyncEvent(SyncEvent event) {
-        log.info("[SSE EVENT] Received - userId: {}, target: {}, type: {}",
+        log.info("[SSE EVENT] Received - userId: {}, messageType: {}, type: {}",
                 event.getUserId(),
-                event.getMessage().target(),
+                event.getMessage().messageType(),
                 event.getMessage().type());
 
         notificationService.sendToClient(

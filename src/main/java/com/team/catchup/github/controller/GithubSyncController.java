@@ -1,10 +1,13 @@
 package com.team.catchup.github.controller;
 
+import com.team.catchup.auth.user.CustomOAuth2User;
 import com.team.catchup.github.dto.GithubSyncStep;
 import com.team.catchup.github.service.GithubSyncService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -24,17 +27,18 @@ public class GithubSyncController {
      * Full Repository Sync
      * Repository 메타데이터, Commits, Pull Requests, Issues, Comments, Reviews, File Changes 모두 동기화
      *
-     * @param userId User ID for SSE notification
+     * @param authentication Authenticated user
      * @param owner Repository owner (username or organization)
      * @param repo Repository name
      */
     @PostMapping("/full")
     public ResponseEntity<Map<String, String>> fullSync(
-            @RequestParam String userId,
+            Authentication authentication,
             @RequestParam String owner,
             @RequestParam String repo
     ) {
-        log.info("[GITHUB][CONTROLLER] Full sync request received for {}/{}", owner, repo);
+        Long userId = extractUserId(authentication);
+        log.info("[GITHUB][CONTROLLER] Full sync request received for {}/{} by userId: {}", owner, repo, userId);
 
         try {
             githubSyncService.fullSync(userId, owner, repo);
@@ -55,20 +59,21 @@ public class GithubSyncController {
      * Retry Full Sync from a specific step
      * 특정 단계부터 Full Sync 재시도
      *
-     * @param userId User ID for SSE notification
+     * @param authentication Authenticated user
      * @param owner Repository owner (username or organization)
      * @param repo Repository name
      * @param startFrom Step to start from (REPOSITORY_INFO, COMMITS, PULL_REQUESTS, ISSUES, COMMENTS, REVIEWS, FILE_CHANGES)
      */
     @PostMapping("/retry")
     public ResponseEntity<Map<String, String>> retryFromStep(
-            @RequestParam String userId,
+            Authentication authentication,
             @RequestParam String owner,
             @RequestParam String repo,
             @RequestParam GithubSyncStep startFrom
     ) {
-        log.info("[GITHUB][CONTROLLER] Retry sync request received for {}/{} from step: {}",
-                owner, repo, startFrom);
+        Long userId = extractUserId(authentication);
+        log.info("[GITHUB][CONTROLLER] Retry sync request received for {}/{} from step: {} by userId: {}",
+                owner, repo, startFrom, userId);
 
         try {
             githubSyncService.fullSyncFrom(userId, owner, repo, startFrom);
@@ -91,14 +96,13 @@ public class GithubSyncController {
      */
     @PostMapping("/repository")
     public ResponseEntity<Map<String, String>> syncRepository(
-            @RequestParam String userId,
             @RequestParam String owner,
             @RequestParam String repo
     ) {
         log.info("[GITHUB][CONTROLLER] Repository sync request received for {}/{}", owner, repo);
 
         try {
-            githubSyncService.syncRepositoryMetadata(userId, owner, repo);
+            githubSyncService.syncRepositoryMetadata(owner, repo);
             return ResponseEntity.ok(Map.of(
                     "status", "started",
                     "message", "Repository metadata sync started for " + owner + "/" + repo
@@ -198,5 +202,18 @@ public class GithubSyncController {
                     "message", "Failed to sync issues: " + e.getMessage()
             ));
         }
+    }
+
+    /**
+     * Authentication 객체에서 userId 추출
+     */
+    private Long extractUserId(Authentication authentication) {
+        if (authentication instanceof OAuth2AuthenticationToken) {
+            CustomOAuth2User oAuth2User = (CustomOAuth2User) authentication.getPrincipal();
+            return oAuth2User.getMember().getId();
+        }
+        // JWT 인증의 경우 (UsernamePasswordAuthenticationToken)
+        // Subject에 memberId가 String으로 저장되어 있음
+        return Long.parseLong(authentication.getName());
     }
 }
