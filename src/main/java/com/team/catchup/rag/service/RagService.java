@@ -8,6 +8,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -21,12 +22,12 @@ public class RagService {
         this.chatUsageLimitService = chatUsageLimitService;
     }
 
-    public Mono<UserChatResponse> requestChat(String query, UUID sessionId, Long memberId){
-        return Mono.fromCallable(() -> chatUsageLimitService.checkAndIncrementUsageLimit(memberId, sessionId))
+    public Mono<UserChatResponse> requestChat(String query, UUID sessionId, Long memberId, String indexName) {
+        return Mono.fromCallable(() -> Optional.ofNullable(chatUsageLimitService.checkAndIncrementUsageLimit(memberId, sessionId)))
                 .subscribeOn(Schedulers.boundedElastic())
-                .flatMap(response -> {
-                    if (response != null) {
-                        return Mono.just(response);
+                .flatMap(optionalResponse -> {
+                    if (optionalResponse.isPresent()) {
+                        return Mono.just(optionalResponse.get());
                     }
 
                     ServerChatRequest request = ServerChatRequest.of(query, null, sessionId);
@@ -35,9 +36,9 @@ public class RagService {
                             .bodyValue(request)
                             .retrieve()
                             .onStatus(
-                                    status->status.is4xxClientError() || status.is5xxServerError(),
+                                    status -> status.is4xxClientError() || status.is5xxServerError(),
                                     res -> res.bodyToMono(String.class)
-                                            .map(RuntimeException::new)
+                                            .flatMap(error -> Mono.error(new RuntimeException(error)))
                             )
                             .bodyToMono(UserChatResponse.class);
                 });
