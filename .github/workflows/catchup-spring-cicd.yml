@@ -58,7 +58,7 @@ jobs:
             docker pull ${{ secrets.DOCKER_REGISTRY_URL }}/${{ secrets.DOCKER_IMAGE_NAME }}:${{ needs.build.outputs.image_tag }}
                       
             
-            echo "Injecting '.env' file."
+            echo "Injecting '.env' file..."
             touch .env
             echo "${{ secrets.DOTENV_FILE }}" > .env
             echo "IMAGE_TAG=${{ needs.build.outputs.image_tag }}" >> .env
