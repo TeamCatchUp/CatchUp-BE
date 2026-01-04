@@ -1,6 +1,7 @@
 package com.team.catchup.rag.service;
 
 import com.team.catchup.rag.dto.ServerChatRequest;
+import com.team.catchup.rag.dto.ServerChatResponse;
 import com.team.catchup.rag.dto.UserChatResponse;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
@@ -30,9 +31,10 @@ public class RagService {
                         return Mono.just(optionalResponse.get());
                     }
 
-                    ServerChatRequest request = ServerChatRequest.of(query, null, sessionId);
+                    ServerChatRequest request = ServerChatRequest.of(query, null, sessionId, indexName);
+
                     return chatClient.post()
-                            .uri("/api/chat/")
+                            .uri("/api/chat")
                             .bodyValue(request)
                             .retrieve()
                             .onStatus(
@@ -40,7 +42,8 @@ public class RagService {
                                     res -> res.bodyToMono(String.class)
                                             .flatMap(error -> Mono.error(new RuntimeException(error)))
                             )
-                            .bodyToMono(UserChatResponse.class);
+                            .bodyToMono(ServerChatResponse.class)
+                            .map(serverRes -> UserChatResponse.from(sessionId, serverRes));
                 });
     }
 }

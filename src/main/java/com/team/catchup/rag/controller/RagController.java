@@ -24,7 +24,7 @@ public class RagController {
             ) {
         Long memberId = Long.parseLong(authentication.getName());
 
-        return ragService.requestChat(request.query(), request.sessionId(), memberId)
+        return ragService.requestChat(request.query(), request.sessionId(), memberId, request.indexName())
                 .map(ResponseEntity::ok);
     }
 }

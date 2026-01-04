@@ -15,7 +15,7 @@ import java.util.UUID;
 public class ChatUsageLimitService {
 
     private final ChatUsageLimitRepository chatUsageLimitRepository;
-    private static final int DAILY_CHAT_LIMIT = 2;
+    private static final int DAILY_CHAT_LIMIT = 9999;
 
     @Transactional
     public UserChatResponse checkAndIncrementUsageLimit(Long memberId, UUID sessionId) {
@@ -24,7 +24,7 @@ public class ChatUsageLimitService {
                 .orElse(null);
 
         if (usageLimit != null && usageLimit.getUsageCount() >= DAILY_CHAT_LIMIT) {
-            return UserChatResponse.of("일일 최대 채팅 횟수를 초과했습니다", sessionId);
+            return UserChatResponse.of(sessionId, "일일 최대 채팅 횟수를 초과했습니다");
         }
 
         if (usageLimit == null) {
