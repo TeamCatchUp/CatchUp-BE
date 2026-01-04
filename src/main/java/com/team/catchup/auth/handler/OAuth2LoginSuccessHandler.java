@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
@@ -17,6 +18,9 @@ import java.io.IOException;
 @RequiredArgsConstructor
 public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
     private final JwtTokenProvider tokenProvider;
+
+    @Value("${app.oauth2.redirect-uri}")
+    private String redirectUri;
 
     @Override
     public void onAuthenticationSuccess(
@@ -32,6 +36,6 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
         String accessToken = tokenProvider.createAccessToken(email, role);
         response.addHeader("Authorization", "Bearer " + accessToken);
 
-        response.sendRedirect("http://localhost:8080/oauth/callback?token=" + accessToken); // TODO: 개선
+        response.sendRedirect(redirectUri + "?token=" + accessToken); // TODO: 개선
     }
 }

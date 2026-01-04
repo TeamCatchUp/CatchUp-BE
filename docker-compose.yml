@@ -12,45 +12,24 @@ services:
     networks:
       - db-network
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    env_file:
+      - .env
 
-  catchup-server:
+  catchup-spring-server:
     container_name: catchup-server
-    # image: "${DOCKER_REGISTRY_URL}/${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}" CI/CD
-    environment:
-        MEILISEARCH_URL: "${MEILISEARCH_URL}"
-        MEILISEARCH_MASTER_KEY: "${MEILISEARCH_MASTER_KEY}"
-
-        MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD}"
-        MYSQL_DATABASE: "${MYSQL_DATABASE}"
-        MYSQL_USER: "${MYSQL_USER}"
-        MYSQL_PASSWORD: "${MYSQL_PASSWORD}"
-
-        JIRA_BASE_URL: "${JIRA_BASE_URL}"
-        JIRA_USER_EMAIL: "${JIRA_USER_EMAIL}"
-        JIRA_API_TOKEN: "${JIRA_API_TOKEN}"
-
+    image: "${DOCKER_REGISTRY_URL}/${DOCKER_IMAGE_NAME}:${IMAGE_TAG}"
+    env_file:
+      - .env
     networks:
-      - search-network
       - db-network
     ports:
       - "8080:8080"
     depends_on:
       - db
-      - meilisearch
     restart: on-failure
 
-  meilisearch:
-    container_name: meilisearch
-    image: "getmeili/meilisearch:v1.16"
-    volumes:
-      - meilisearch_storage:/meili_data
-    networks:
-      - search-network
-
 networks:
-  search-network:
   db-network:
 
 volumes:
-  meilisearch_storage:
   mysql_data:

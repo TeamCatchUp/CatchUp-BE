@@ -1,0 +1,75 @@
+name: Catchup Spring server CICD Workflow
+on:
+  push:
+    branches:
+      - 'release/**'
+      - 'main'
+  pull_request:
+    branches:
+      - main
+      - develop
+
+jobs:
+  build:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ github.sha }}
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Authenticate with Docker Registry
+        run: echo "${{ secrets.DOCKER_REGISTRY_PASSWORD }}" | docker login "${{ secrets.DOCKER_REGISTRY_URL }}" --username "${{ secrets.DOCKER_REGISTRY_USER_NAME }}" --password-stdin
+
+      - name: Build Docker Image
+        run: docker build -t "${{ secrets.DOCKER_REGISTRY_URL }}/${{ secrets.DOCKER_IMAGE_NAME }}:${{ github.sha }}" .
+
+      - name: Push Docker Image
+        run: docker push "${{ secrets.DOCKER_REGISTRY_URL }}/${{ secrets.DOCKER_IMAGE_NAME}}:${{ github.sha }}"
+
+  deploy:
+    name: Deploy to EC2 Server
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name != 'pull_request'
+
+    steps:
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.AWS_EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.AWS_EC2_SSH_PRIVATE_KEY }}
+          port: ${{ secrets.AWS_EC2_SSH_PORT }}
+          script: |
+            cd ~
+            
+            if [ ! -d "CatchUp-BE" ]; then
+              echo "Repository not found. Cloning..."
+              git clone "https://github.com/TeamCatchUp/CatchUp-BE.git"
+            fi
+            
+            cd CatchUp-BE
+            
+            echo "Pulling latest code..."
+            git fetch origin
+            git checkout ${{ github.sha }}
+                        
+            echo "Pulling new image..."
+            docker pull ${{ secrets.DOCKER_REGISTRY_URL }}/${{ secrets.DOCKER_IMAGE_NAME }}:${{ needs.build.outputs.image_tag }}
+                      
+            echo "Injecting '.env' file..."
+            touch .env
+            echo "${{ secrets.DOTENV_FILE }}" > .env
+            echo "IMAGE_TAG=${{ needs.build.outputs.image_tag }}" >> .env
+            
+            echo "Running containers..."
+            docker compose up -d
+            
+            echo "Pruning old images..."
+            docker image prune -a -f
+            
+            echo "Done. Check container status below."
+            docker ps
