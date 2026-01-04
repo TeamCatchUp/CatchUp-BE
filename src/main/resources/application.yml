@@ -168,3 +168,4 @@ app:
   oauth2:
     # 기본값은 로컬용, 배포 시 환경변수 OAUTH_REDIRECT_URI로 덮어쓰기
     redirect-uri: ${app.base-url}/oauth/callback
+  daily-chat-limit: ${DAILY_CHAT_LIMIT}
