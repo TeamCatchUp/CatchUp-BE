@@ -69,7 +69,7 @@ jobs:
             docker compose up -d
             
             echo "Pruning old images..."
-            docker image prune -f
+            docker image prune -a -f
             
             echo "Done. Check container status below."
             docker ps
