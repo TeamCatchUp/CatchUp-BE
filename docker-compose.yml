@@ -1,0 +1,35 @@
+services:
+  db:
+    container_name: mysql
+    image: "mysql:8.0"
+    environment:
+      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD}"
+      MYSQL_DATABASE: "${MYSQL_DATABASE}"
+      MYSQL_USER: "${MYSQL_USER}"
+      MYSQL_PASSWORD: "${MYSQL_PASSWORD}"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - db-network
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    env_file:
+      - .env
+
+  catchup-spring-server:
+    container_name: catchup-server
+    image: "${DOCKER_REGISTRY_URL}/${DOCKER_IMAGE_NAME}:${IMAGE_TAG}"
+    env_file:
+      - .env
+    networks:
+      - db-network
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+    restart: on-failure
+
+networks:
+  db-network:
+
+volumes:
+  mysql_data:
