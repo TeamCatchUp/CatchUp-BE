@@ -1,13 +1,12 @@
 package com.team.catchup.rag.controller;
 
-import com.team.catchup.auth.user.CustomOAuth2User;
 import com.team.catchup.rag.dto.UserChatRequest;
 import com.team.catchup.rag.dto.UserChatResponse;
 import com.team.catchup.rag.service.RagService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
@@ -21,9 +20,9 @@ public class RagController {
     @PostMapping("/api/chat")
     public Mono<ResponseEntity<UserChatResponse>> getChatResponse(
             @Valid @RequestBody UserChatRequest request,
-            @AuthenticationPrincipal CustomOAuth2User userDetails
+            Authentication authentication
             ) {
-        Long memberId = userDetails.getMember().getId();
+        Long memberId = Long.parseLong(authentication.getName());
 
         return ragService.requestChat(request.query(), request.sessionId(), memberId)
                 .map(ResponseEntity::ok);
