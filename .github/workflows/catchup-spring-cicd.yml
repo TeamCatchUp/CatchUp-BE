@@ -2,11 +2,12 @@ name: Catchup Spring server CICD Workflow
 on:
   push:
     branches:
-      - develop
-      - 'deploy/**'
+      - 'release/**'
+      - 'main'
   pull_request:
     branches:
       - main
+      - develop
 
 jobs:
   build:
@@ -45,19 +46,20 @@ jobs:
           script: |
             cd ~
             
-            echo "Removing the previous repository..."
-            rm -rf CatchUp-BE
-
-            echo "Cloning the repository..."
-            git clone "https://github.com/TeamCatchUp/CatchUp-BE.git"
+            if [ ! -d "CatchUp-BE" ]; then
+              echo "Repository not found. Cloning..."
+              git clone "https://github.com/TeamCatchUp/CatchUp-BE.git"
+            fi
+            
             cd CatchUp-BE
             
-            git checkout deploy/https-setup
-            
+            echo "Pulling latest code..."
+            git fetch origin
+            git checkout ${{ github.sha }}
+                        
             echo "Pulling new image..."
             docker pull ${{ secrets.DOCKER_REGISTRY_URL }}/${{ secrets.DOCKER_IMAGE_NAME }}:${{ needs.build.outputs.image_tag }}
                       
-            
             echo "Injecting '.env' file..."
             touch .env
             echo "${{ secrets.DOTENV_FILE }}" > .env
