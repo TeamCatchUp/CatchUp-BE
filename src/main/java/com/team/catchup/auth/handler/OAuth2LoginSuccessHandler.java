@@ -30,10 +30,11 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
 
         String email = oAuth2User.getMember().getEmail();
         String role = oAuth2User.getMember().getRole().name();
+        Long memberId = oAuth2User.getMember().getId();
 
         log.info("Google 로그인 성공");
 
-        String accessToken = tokenProvider.createAccessToken(email, role);
+        String accessToken = tokenProvider.createAccessToken(email, role, memberId);
         response.addHeader("Authorization", "Bearer " + accessToken);
 
         response.sendRedirect(redirectUri + "?token=" + accessToken); // TODO: 개선
