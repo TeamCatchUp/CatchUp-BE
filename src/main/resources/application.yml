@@ -3,6 +3,10 @@
 # ============================================
 server:
   forward-headers-strategy: native
+  server:
+    servlet:
+      session:
+        tracking-modes: none
 
 spring:
   application:
@@ -167,5 +171,5 @@ app:
   base-url: ${SPRING_SERVER_BASE_URL:http://localhost:8080}
   oauth2:
     # 기본값은 로컬용, 배포 시 환경변수 OAUTH_REDIRECT_URI로 덮어쓰기
-    redirect-uri: ${app.base-url}
+    redirect-uri: ${FRONTEND_DOMAIN}/oauth/callback
   daily-chat-limit: ${DAILY_CHAT_LIMIT}
