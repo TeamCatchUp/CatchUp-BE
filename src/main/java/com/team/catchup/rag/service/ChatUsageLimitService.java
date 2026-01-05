@@ -4,6 +4,7 @@ import com.team.catchup.rag.dto.UserChatResponse;
 import com.team.catchup.rag.entity.ChatUsageLimit;
 import com.team.catchup.rag.repository.ChatUsageLimitRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,7 +16,9 @@ import java.util.UUID;
 public class ChatUsageLimitService {
 
     private final ChatUsageLimitRepository chatUsageLimitRepository;
-    private static final int DAILY_CHAT_LIMIT = 9999;
+
+    @Value("${app.daily-chat-limit}")
+    private int DAILY_CHAT_LIMIT;
 
     @Transactional
     public UserChatResponse checkAndIncrementUsageLimit(Long memberId, UUID sessionId) {

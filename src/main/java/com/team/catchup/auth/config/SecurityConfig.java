@@ -65,12 +65,14 @@ public class SecurityConfig {
                 // csrf 보안 비활성화
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .sessionManagement(session->session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 // URL별 권한 설정
                 .authorizeHttpRequests(auth -> auth
                         // swagger
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         // 소셜 로그인
-                        .requestMatchers("/oauth2/**", "/login/**").permitAll()
+                        .requestMatchers("/oauth2/**", "/login/**", "/error").permitAll()
                         .requestMatchers("/oauth/callback").permitAll()
                         // 이외의 모든 요청은 인증 필요
                         .anyRequest().authenticated()
