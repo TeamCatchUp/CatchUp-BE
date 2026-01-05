@@ -38,6 +38,6 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
 
         response.addHeader("Authorization", "Bearer " + accessToken);
 
-        response.sendRedirect(redirectUri); // 프론트엔드 홈화면으로 리다이렉트
+        response.sendRedirect(redirectUri + "?token=" + accessToken); // 프론트엔드 홈화면으로 리다이렉트
     }
 }
