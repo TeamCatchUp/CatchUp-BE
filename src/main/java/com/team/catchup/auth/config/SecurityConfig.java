@@ -48,8 +48,6 @@ public class SecurityConfig {
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .sessionManagement(session->session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .securityContext(context -> context
-                        .securityContextRepository(new NullSecurityContextRepository()))
                 .authorizeHttpRequests(auth -> auth
                         .dispatcherTypeMatchers(DispatcherType.ASYNC).permitAll()
                         .anyRequest().authenticated())
@@ -69,7 +67,7 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session->session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                        .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .securityContext(context -> context
                         .securityContextRepository(new NullSecurityContextRepository()))
                 // URL별 권한 설정
@@ -82,7 +80,6 @@ public class SecurityConfig {
                         // 이외의 모든 요청은 인증 필요
                         .anyRequest().authenticated()
                 )
-
                 // 소셜 로그인 설정
                 .oauth2Login(oauth2 -> oauth2
                         .userInfoEndpoint(userInfo -> userInfo
