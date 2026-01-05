@@ -35,8 +35,9 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
         log.info("Google 로그인 성공");
 
         String accessToken = tokenProvider.createAccessToken(email, role, memberId);
+
         response.addHeader("Authorization", "Bearer " + accessToken);
 
-        response.sendRedirect(redirectUri + "?token=" + accessToken); // TODO: 개선
+        response.sendRedirect(redirectUri); // 프론트엔드 홈화면으로 리다이렉트
     }
 }
