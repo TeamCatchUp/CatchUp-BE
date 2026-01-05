@@ -45,6 +45,8 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
                 .sameSite("Lax")
                 .build();
 
+        response.addHeader("Set-Cookie", cookie.toString());
+
         response.sendRedirect(redirectUri); // 프론트엔드 홈화면으로 리다이렉트
     }
 }
