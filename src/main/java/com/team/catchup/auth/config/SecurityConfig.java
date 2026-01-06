@@ -33,6 +33,9 @@ public class SecurityConfig {
     @Value("${app.base-url}")
     private String springServerBaseUrl;
 
+    @Value("${app.frontend-domain}")
+    private String frontendDomain;
+
     private final CustomOAuth2UserService customOAuth2UserService;
     private final OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler;
     private final JwtTokenProvider tokenProvider;
@@ -98,7 +101,8 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(List.of(
                 "http://localhost:3000",
                 "http://localhost:8080",
-                springServerBaseUrl
+                springServerBaseUrl,
+                frontendDomain
         ));
 
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
