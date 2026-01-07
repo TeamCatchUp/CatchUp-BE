@@ -2,6 +2,7 @@ package com.team.catchup.auth.handler;
 
 import com.team.catchup.auth.jwt.JwtTokenProvider;
 import com.team.catchup.auth.user.CustomOAuth2User;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -30,12 +31,25 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
 
         String email = oAuth2User.getMember().getEmail();
         String role = oAuth2User.getMember().getRole().name();
+        Long memberId = oAuth2User.getMember().getId();
 
         log.info("Google 로그인 성공");
 
-        String accessToken = tokenProvider.createAccessToken(email, role);
+        // JSESSIONID 무효화
+        if (request.getSession(false) != null) {
+            request.getSession(false).invalidate();
+        }
+
+        Cookie cookie = new Cookie("JSESSIONID", null);
+        cookie.setPath("/");
+        cookie.setMaxAge(0);
+        cookie.setHttpOnly(true);
+        response.addCookie(cookie);
+
+        String accessToken = tokenProvider.createAccessToken(email, role, memberId);
+
         response.addHeader("Authorization", "Bearer " + accessToken);
 
-        response.sendRedirect(redirectUri + "?token=" + accessToken); // TODO: 개선
+        response.sendRedirect(redirectUri + "?token=" + accessToken); // 프론트엔드 홈화면으로 리다이렉트
     }
 }

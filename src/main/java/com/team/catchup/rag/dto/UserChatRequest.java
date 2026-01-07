@@ -7,6 +7,7 @@ import java.util.UUID;
 
 public record UserChatRequest(
         @NotBlank String query,
-        @NotNull UUID sessionId
+        @NotNull UUID sessionId,
+        @NotBlank String indexName // 중간 시연용
         ) {
 }

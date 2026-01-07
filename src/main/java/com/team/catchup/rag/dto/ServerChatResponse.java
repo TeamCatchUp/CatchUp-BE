@@ -1,19 +1,31 @@
 package com.team.catchup.rag.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;
+import java.util.List;
 
 public record ServerChatResponse(
         @NotBlank String answer,
-        Source sources
+        List<Source> sources
 ) {
-    private record Source (
-            String source,
-            String category,
-            Integer page,
+    public record Source (
+            @JsonProperty("source_type")
+            String sourceType,
+
+            @JsonProperty("text")
             String content,
-            String file_path,
-            String file_name
+
+            @JsonProperty("file_path")
+            String filePath,
+
+            String category,
+
+            String source, // 문서 출처
+
+            @JsonProperty("html_url")
+            String htmlUrl,
+
+            String language
     ){
     }
 }
-

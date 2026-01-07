@@ -6,6 +6,7 @@ import com.team.catchup.rag.service.RagService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
@@ -18,9 +19,12 @@ public class RagController {
 
     @PostMapping("/api/chat")
     public Mono<ResponseEntity<UserChatResponse>> getChatResponse(
-            @Valid @RequestBody UserChatRequest request
+            @Valid @RequestBody UserChatRequest request,
+            Authentication authentication
             ) {
-        return ragService.requestChat(request.query(), request.sessionId())
+        Long memberId = Long.parseLong(authentication.getName());
+
+        return ragService.requestChat(request.query(), request.sessionId(), memberId, request.indexName())
                 .map(ResponseEntity::ok);
     }
 }

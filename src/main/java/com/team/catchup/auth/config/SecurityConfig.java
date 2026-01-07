@@ -18,6 +18,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.context.NullSecurityContextRepository;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -31,6 +32,9 @@ public class SecurityConfig {
 
     @Value("${app.base-url}")
     private String springServerBaseUrl;
+
+    @Value("${app.frontend-domain}")
+    private String frontendDomain;
 
     private final CustomOAuth2UserService customOAuth2UserService;
     private final OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler;
@@ -65,6 +69,10 @@ public class SecurityConfig {
                 // csrf 보안 비활성화
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .sessionManagement(session->session
+                        .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
+                .securityContext(context -> context
+                        .securityContextRepository(new NullSecurityContextRepository()))
                 // URL별 권한 설정
                 .authorizeHttpRequests(auth -> auth
                         // swagger
@@ -75,7 +83,6 @@ public class SecurityConfig {
                         // 이외의 모든 요청은 인증 필요
                         .anyRequest().authenticated()
                 )
-
                 // 소셜 로그인 설정
                 .oauth2Login(oauth2 -> oauth2
                         .userInfoEndpoint(userInfo -> userInfo
@@ -94,7 +101,8 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(List.of(
                 "http://localhost:3000",
                 "http://localhost:8080",
-                springServerBaseUrl
+                springServerBaseUrl,
+                frontendDomain
         ));
 
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));

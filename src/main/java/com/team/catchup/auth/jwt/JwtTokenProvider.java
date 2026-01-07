@@ -34,13 +34,14 @@ public class JwtTokenProvider {
         this.accessTokenExpiration = accessTokenExpiration;
     }
 
-    public String createAccessToken(String email, String role) {
+    public String createAccessToken(String email, String role, Long memberId) {
         Date now = new Date();
         Date validity = new Date(now.getTime() + accessTokenExpiration);
 
         return Jwts.builder()
-                .setSubject(email)
+                .setSubject(String.valueOf(memberId))
                 .claim("role", role)
+                .claim("email", email)
                 .setIssuedAt(now)
                 .setExpiration(validity)
                 .signWith(key, SignatureAlgorithm.HS256)
