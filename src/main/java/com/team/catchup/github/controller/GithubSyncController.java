@@ -30,7 +30,7 @@ public class GithubSyncController {
      */
     @PostMapping("/full")
     public ResponseEntity<Map<String, String>> fullSync(
-            @RequestParam String userId,
+            @RequestParam Long userId,
             @RequestParam String owner,
             @RequestParam String repo
     ) {
@@ -62,7 +62,7 @@ public class GithubSyncController {
      */
     @PostMapping("/retry")
     public ResponseEntity<Map<String, String>> retryFromStep(
-            @RequestParam String userId,
+            @RequestParam Long userId,
             @RequestParam String owner,
             @RequestParam String repo,
             @RequestParam GithubSyncStep startFrom

@@ -27,7 +27,7 @@ public class GithubSyncService {
      * Repository 메타데이터 -> Commits -> Pull Requests -> Issues -> Comments -> Reviews -> File Changes
      */
     @Async
-    public void fullSync(String userId, String owner, String repo) {
+    public void fullSync(Long userId, String owner, String repo) {
         fullSyncFrom(userId, owner, repo, GithubSyncStep.REPOSITORY_INFO);
     }
 
@@ -35,7 +35,7 @@ public class GithubSyncService {
      * 특정 단계부터 Full Sync 재시도
      */
     @Async
-    public void fullSyncFrom(String userId, String owner, String repo, GithubSyncStep startFrom) {
+    public void fullSyncFrom(Long userId, String owner, String repo, GithubSyncStep startFrom) {
         log.info("[GITHUB][FULL SYNC] Background Process Started | owner: {}, repo: {}, startFrom: {}",
                 owner, repo, startFrom);
         String repositoryName = owner + "/" + repo;
@@ -194,7 +194,7 @@ public class GithubSyncService {
 
     // ==================== Private Step Methods ====================
 
-    private GithubRepository syncRepositoryInfo(String userId, String owner, String repo, String repositoryName) {
+    private GithubRepository syncRepositoryInfo(Long userId, String owner, String repo, String repositoryName) {
         log.info("[GITHUB][SYNC] Step 1: Syncing repository metadata");
         publishSimpleMessage(userId, SseEventType.IN_PROGRESS,
                 "Syncing repository metadata for " + repositoryName);
@@ -216,7 +216,7 @@ public class GithubSyncService {
         return repository;
     }
 
-    private void syncCommitsStep(String userId, String owner, String repo, String repositoryName, GithubRepository repository) {
+    private void syncCommitsStep(Long userId, String owner, String repo, String repositoryName, GithubRepository repository) {
         log.info("[GITHUB][SYNC] Step 2: Syncing commits");
         publishSimpleMessage(userId, SseEventType.IN_PROGRESS,
                 "Syncing commits for " + repositoryName);
@@ -234,7 +234,7 @@ public class GithubSyncService {
         log.info("[GITHUB][SYNC] Commits completed - total: {}, saved: {}", count.totalFetched(), count.saved());
     }
 
-    private void syncPullRequestsStep(String userId, String owner, String repo, String repositoryName, GithubRepository repository) {
+    private void syncPullRequestsStep(Long userId, String owner, String repo, String repositoryName, GithubRepository repository) {
         log.info("[GITHUB][SYNC] Step 3: Syncing pull requests");
         publishSimpleMessage(userId, SseEventType.IN_PROGRESS,
                 "Syncing pull requests for " + repositoryName);
@@ -253,7 +253,7 @@ public class GithubSyncService {
                 count.totalFetched(), count.saved());
     }
 
-    private void syncIssuesStep(String userId, String owner, String repo, String repositoryName, GithubRepository repository) {
+    private void syncIssuesStep(Long userId, String owner, String repo, String repositoryName, GithubRepository repository) {
         log.info("[GITHUB][SYNC] Step 4: Syncing issues");
         publishSimpleMessage(userId, SseEventType.IN_PROGRESS,
                 "Syncing issues for " + repositoryName);
@@ -272,8 +272,8 @@ public class GithubSyncService {
                 count.totalFetched(), count.saved());
     }
 
-    private void syncCommentsStep(String userId, String owner, String repo, String repositoryName,
-                                   GithubRepository repository) {
+    private void syncCommentsStep(Long userId, String owner, String repo, String repositoryName,
+                                  GithubRepository repository) {
         log.info("[GITHUB][SYNC] Step 5: Syncing comments");
         publishSimpleMessage(userId, SseEventType.IN_PROGRESS,
                 "Syncing comments for " + repositoryName);
@@ -292,8 +292,8 @@ public class GithubSyncService {
                 count.totalFetched(), count.saved());
     }
 
-    private void syncReviewsStep(String userId, String owner, String repo, String repositoryName,
-                                  GithubRepository repository) {
+    private void syncReviewsStep(Long userId, String owner, String repo, String repositoryName,
+                                 GithubRepository repository) {
         log.info("[GITHUB][SYNC] Step 6: Syncing reviews");
         publishSimpleMessage(userId, SseEventType.IN_PROGRESS,
                 "Syncing reviews for " + repositoryName);
@@ -312,8 +312,8 @@ public class GithubSyncService {
                 count.totalFetched(), count.saved());
     }
 
-    private void syncFileChangesStep(String userId, String owner, String repo, String repositoryName,
-                                      GithubRepository repository) {
+    private void syncFileChangesStep(Long userId, String owner, String repo, String repositoryName,
+                                     GithubRepository repository) {
         log.info("[GITHUB][SYNC] Step 7: Syncing file changes");
         publishSimpleMessage(userId, SseEventType.IN_PROGRESS,
                 "Syncing file changes for " + repositoryName);
@@ -401,12 +401,12 @@ public class GithubSyncService {
         return startFrom.ordinal() <= target.ordinal();
     }
 
-    private void publishSimpleMessage(String userId, SseEventType type, String message) {
+    private void publishSimpleMessage(Long userId, SseEventType type, String message) {
         eventPublisher.publishEvent(new SyncEvent(userId, SyncTarget.GITHUB, type, message));
     }
 
-    private void publishProgressMessage(String userId, SseEventType type, String message,
-                                         GithubSyncProgress progress) {
+    private void publishProgressMessage(Long userId, SseEventType type, String message,
+                                        GithubSyncProgress progress) {
         eventPublisher.publishEvent(
                 new SyncEvent(userId, SyncTarget.GITHUB, type, message, progress)
         );

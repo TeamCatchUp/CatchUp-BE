@@ -27,12 +27,12 @@ public class JiraSyncService {
     private final ApplicationEventPublisher publisher;
 
     @Async
-    public void fullSync(String userId) {
+    public void fullSync(Long userId) {
         fullSyncFrom(userId, JiraSyncStep.PROJECTS, null);
     }
 
     @Async
-    public void fullSyncFrom(String userId,JiraSyncStep startFrom, List<String> targetProjectKeys) {
+    public void fullSyncFrom(Long userId, JiraSyncStep startFrom, List<String> targetProjectKeys) {
         log.info("[JIRA][FULL SYNC] Background Process Started | startFrom: {}", startFrom);
         long startTime = System.currentTimeMillis();
 
@@ -91,7 +91,7 @@ public class JiraSyncService {
     }
 
     //==================================================================================================================
-    private void syncProjects(String userId) {
+    private void syncProjects(Long userId) {
         SyncCount count = jiraProcessor.syncProjects();
 
         JiraSyncProgress progress = JiraSyncProgress.of(
@@ -105,7 +105,7 @@ public class JiraSyncService {
                 count.getTotal(), count.getSaved());
     }
 
-    private void syncUsers(String userId) {
+    private void syncUsers(Long userId) {
         SyncCount count = jiraProcessor.syncUsers();
 
         JiraSyncProgress progress = JiraSyncProgress.of(
@@ -119,7 +119,7 @@ public class JiraSyncService {
                 count.getTotal(), count.getSaved());
     }
 
-    private void syncIssueTypes(String userId) {
+    private void syncIssueTypes(Long userId) {
         SyncCount count = jiraProcessor.syncIssueTypes();
 
         JiraSyncProgress progress = JiraSyncProgress.of(
@@ -133,7 +133,7 @@ public class JiraSyncService {
                 count.getTotal(), count.getSaved());
     }
 
-    private void syncProjectIssues(String userId, List<String> targetProjectKeys) {
+    private void syncProjectIssues(Long userId, List<String> targetProjectKeys) {
         List<String> projectKeys = resolveTargetProjectKeys(targetProjectKeys);
         int totalProjects = projectKeys.size();
         int currentIdx = 0;
@@ -174,12 +174,12 @@ public class JiraSyncService {
         return startFrom.ordinal() <= target.ordinal();
     }
 
-    private void publishSimpleMessage(String userId, SseEventType type, String message) {
+    private void publishSimpleMessage(Long userId, SseEventType type, String message) {
         publisher.publishEvent(new SyncEvent(userId, SyncTarget.JIRA, type, message));
     }
 
     private void publishProgressMessage(
-            String userId,
+            Long userId,
             SseEventType type,
             String message,
             JiraSyncProgress progress
