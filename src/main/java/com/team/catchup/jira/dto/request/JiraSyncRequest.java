@@ -1,23 +1,24 @@
 package com.team.catchup.jira.dto.request;
 
 import com.team.catchup.jira.dto.JiraSyncStep;
+import jakarta.validation.constraints.NotNull;
 
 import java.util.List;
 
 public record JiraSyncRequest(
-        Long userId,
+        @NotNull(message = "Start Step is Required")
         JiraSyncStep startFrom,
+
         List<String> projectKeys
 ) {
-    public static JiraSyncRequest fullSync(Long userId) {
-        return new JiraSyncRequest(userId, JiraSyncStep.PROJECTS, null);
+    public static JiraSyncRequest fullSync() {
+        return new JiraSyncRequest(JiraSyncStep.PROJECTS, null);
     }
 
     public static JiraSyncRequest retryFrom(
-            Long userId,
             JiraSyncStep startFrom,
             List<String> projectKeys
     ) {
-        return new JiraSyncRequest(userId, startFrom, projectKeys);
+        return new JiraSyncRequest(startFrom, projectKeys);
     }
 }
