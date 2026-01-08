@@ -19,7 +19,7 @@ public class NotificationController {
     private final NotificationService notificationService;
 
     @GetMapping(value = "/subscribe", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter subscribe(@RequestParam String userId) {
+    public SseEmitter subscribe(@RequestParam Long userId) {
         log.info("[API][SSE Subscribe Request | userId : {}", userId);
         return notificationService.subscribe(userId);
     }

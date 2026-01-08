@@ -5,16 +5,16 @@ import com.team.catchup.jira.dto.JiraSyncStep;
 import java.util.List;
 
 public record JiraSyncRequest(
-        String userId,
+        Long userId,
         JiraSyncStep startFrom,
         List<String> projectKeys
 ) {
-    public static JiraSyncRequest fullSync(String userId) {
+    public static JiraSyncRequest fullSync(Long userId) {
         return new JiraSyncRequest(userId, JiraSyncStep.PROJECTS, null);
     }
 
     public static JiraSyncRequest retryFrom(
-            String userId,
+            Long userId,
             JiraSyncStep startFrom,
             List<String> projectKeys
     ) {

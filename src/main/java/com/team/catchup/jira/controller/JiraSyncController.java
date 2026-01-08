@@ -20,7 +20,7 @@ public class JiraSyncController {
      * POST /api/jira/sync/full
      */
     @PostMapping("/full")
-    public ResponseEntity<String> fullSync(@RequestParam String userId) {
+    public ResponseEntity<String> fullSync(@RequestParam Long userId) {
         log.info("[API] Full Sync 요청");
         jiraSyncService.fullSync(userId);
         return ResponseEntity.ok("Jira Full Sync Process Started at Background");
