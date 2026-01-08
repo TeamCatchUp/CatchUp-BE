@@ -2,6 +2,7 @@ package com.team.catchup.auth.jwt;
 
 import com.team.catchup.auth.user.CustomUserDetails;
 import com.team.catchup.member.entity.Member;
+import com.team.catchup.member.enums.MemberRoleType;
 import com.team.catchup.member.repository.MemberRepository;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;
@@ -11,31 +12,24 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.Date;
 
 @Slf4j
 @Component
 public class JwtTokenProvider {
-    private final MemberRepository memberRepository;
     private final SecretKey key;
     private final long accessTokenExpiration;
     private final long refreshTokenExpiration;
 
     public JwtTokenProvider(
-            MemberRepository memberRepository,
             @Value("${jwt.secret}") String secret,
             @Value("${jwt.access_expiration}") long accessTokenExpiration,
             @Value("${jwt.refresh_expiration}") long refreshTokenExpiration
 
     ) {
-        this.memberRepository = memberRepository;
         byte[] keyBytes = Decoders.BASE64.decode(secret);
         this.key = Keys.hmacShaKeyFor(keyBytes);
         this.accessTokenExpiration = accessTokenExpiration;
@@ -119,17 +113,11 @@ public class JwtTokenProvider {
         }
 
         Long memberId = Long.valueOf(claims.getSubject());
+        String email = claims.get("email", String.class);
+        MemberRoleType role = MemberRoleType.valueOf(claims.get("role", String.class));
 
-        Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다"));
+        CustomUserDetails principal = new CustomUserDetails(memberId, email, role);
 
-        CustomUserDetails userDetails = new CustomUserDetails(member);
-
-        Collection<? extends GrantedAuthority> authorities =
-                Arrays.stream(claims.get("role").toString().split(","))
-                        .map(SimpleGrantedAuthority::new)
-                        .toList();
-
-        return new UsernamePasswordAuthenticationToken(userDetails, "", authorities);
+        return new UsernamePasswordAuthenticationToken(principal, "", principal.getAuthorities());
     }
 }

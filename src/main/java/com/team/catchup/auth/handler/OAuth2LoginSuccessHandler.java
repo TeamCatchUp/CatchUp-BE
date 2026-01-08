@@ -53,6 +53,12 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
 
         refreshTokenService.saveRefreshToken(memberId, refreshToken);
 
+        log.info("=".repeat(100));
+        log.info("JWT Tokens for: {}", email);
+        log.info("Access Token: {}", accessToken);
+        log.info("Refresh Token: {}", refreshToken);
+        log.info("=".repeat(100));
+
         response.addHeader("Authorization", "Bearer " + accessToken);
 
         response.sendRedirect(redirectUri + "?accessToken=" + accessToken + "&refreshToken=" + refreshToken);
