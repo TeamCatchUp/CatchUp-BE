@@ -1,6 +1,7 @@
 package com.team.catchup.auth.handler;
 
 import com.team.catchup.auth.jwt.JwtTokenProvider;
+import com.team.catchup.auth.service.RefreshTokenService;
 import com.team.catchup.auth.user.CustomOAuth2User;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -19,6 +20,7 @@ import java.io.IOException;
 @RequiredArgsConstructor
 public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
     private final JwtTokenProvider tokenProvider;
+    private final RefreshTokenService refreshTokenService;
 
     @Value("${app.oauth2.redirect-uri}")
     private String redirectUri;
@@ -47,9 +49,12 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
         response.addCookie(cookie);
 
         String accessToken = tokenProvider.createAccessToken(email, role, memberId);
+        String refreshToken = tokenProvider.createRefreshToken(memberId);
+
+        refreshTokenService.saveRefreshToken(memberId, refreshToken);
 
         response.addHeader("Authorization", "Bearer " + accessToken);
 
-        response.sendRedirect(redirectUri + "?token=" + accessToken); // 프론트엔드 홈화면으로 리다이렉트
+        response.sendRedirect(redirectUri + "?accessToken=" + accessToken + "&refreshToken=" + refreshToken);
     }
 }

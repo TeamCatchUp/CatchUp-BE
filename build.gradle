@@ -56,9 +56,12 @@ dependencies {
 
     //Rabbit MQ
     implementation 'org.springframework.boot:spring-boot-starter-amqp'
+
+    // Redis
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 }
 
-tasks.named('test') {
+tasks.named('test', Test) {
 	useJUnitPlatform()
 }
 

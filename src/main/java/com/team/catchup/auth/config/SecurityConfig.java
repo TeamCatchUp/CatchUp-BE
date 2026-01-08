@@ -4,6 +4,7 @@ import com.team.catchup.auth.handler.OAuth2LoginSuccessHandler;
 import com.team.catchup.auth.jwt.JwtAuthenticationFilter;
 import com.team.catchup.auth.jwt.JwtTokenProvider;
 import com.team.catchup.auth.service.CustomOAuth2UserService;
+import com.team.catchup.auth.service.TokenBlacklistService;
 import jakarta.servlet.DispatcherType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -39,6 +40,7 @@ public class SecurityConfig {
     private final CustomOAuth2UserService customOAuth2UserService;
     private final OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler;
     private final JwtTokenProvider tokenProvider;
+    private final TokenBlacklistService tokenBlacklistService;
 
     @Bean
     @Order(1)
@@ -57,7 +59,7 @@ public class SecurityConfig {
                 .exceptionHandling(e -> e
                         .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
                 )
-                .addFilterBefore(new JwtAuthenticationFilter(tokenProvider), UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(new JwtAuthenticationFilter(tokenProvider, tokenBlacklistService), UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
@@ -78,7 +80,7 @@ public class SecurityConfig {
                         // swagger
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         // 소셜 로그인
-                        .requestMatchers("/oauth2/**", "/login/**").permitAll()
+                        .requestMatchers("/oauth2/**", "/login/**", "/error").permitAll()
                         .requestMatchers("/oauth/callback").permitAll()
                         // 이외의 모든 요청은 인증 필요
                         .anyRequest().authenticated()
