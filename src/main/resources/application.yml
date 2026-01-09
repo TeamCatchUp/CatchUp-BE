@@ -26,7 +26,7 @@ spring:
               - email
               - profile
   # ============================================
-  # Database - MySQL
+  # Database - PostgreSQL
   # ============================================
   datasource:
     driver-class-name: org.postgresql.Driver

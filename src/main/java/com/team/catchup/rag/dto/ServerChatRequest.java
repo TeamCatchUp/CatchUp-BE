@@ -3,7 +3,6 @@ package com.team.catchup.rag.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
-import org.apache.catalina.Server;
 
 import java.util.UUID;
 
