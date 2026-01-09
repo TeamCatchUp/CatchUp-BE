@@ -1,31 +1,21 @@
 package com.team.catchup.rag.dto;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;
+import lombok.Builder;
+
 import java.util.List;
 
+@Builder
 public record ServerChatResponse(
         @NotBlank String answer,
-        List<Source> sources
+        List<Source> sources,
+        String modelName // TODO: FastAPI 쪽에서 호환 필요
 ) {
-    public record Source (
-            @JsonProperty("source_type")
-            String sourceType,
-
-            @JsonProperty("text")
-            String content,
-
-            @JsonProperty("file_path")
-            String filePath,
-
-            String category,
-
-            String source, // 문서 출처
-
-            @JsonProperty("html_url")
-            String htmlUrl,
-
-            String language
-    ){
+    public static ServerChatResponse createError(String errorMessage) {
+        return ServerChatResponse.builder()
+                .answer(errorMessage)
+                .sources(List.of())
+                .modelName("System")
+                .build();
     }
 }

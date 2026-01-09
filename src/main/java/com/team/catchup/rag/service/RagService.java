@@ -1,49 +1,79 @@
 package com.team.catchup.rag.service;
 
+import com.team.catchup.member.entity.Member;
+import com.team.catchup.member.repository.MemberRepository;
+import com.team.catchup.rag.client.RagApiClient;
 import com.team.catchup.rag.dto.ServerChatRequest;
 import com.team.catchup.rag.dto.ServerChatResponse;
 import com.team.catchup.rag.dto.UserChatResponse;
-import org.springframework.beans.factory.annotation.Qualifier;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
 import java.util.Optional;
 import java.util.UUID;
 
+@Slf4j
 @Service
+@RequiredArgsConstructor
 public class RagService {
 
-    private final WebClient chatClient;
+    private final MemberRepository memberRepository;
     private final ChatUsageLimitService chatUsageLimitService;
+    private final ChatHistoryService chatHistoryService;
+    private final RagApiClient ragApiClient;
 
-    public RagService(@Qualifier("ragWebClient") WebClient chatClient, ChatUsageLimitService chatUsageLimitService) {
-        this.chatClient = chatClient;
-        this.chatUsageLimitService = chatUsageLimitService;
+    /**
+     * 일일 채팅 제한에 도달했다면 즉시 응답을 반환하고, 그렇지 않으면 RAG 채팅 요청을 처리한다.
+     */
+    public Mono<UserChatResponse> requestChat(String query, UUID sessionId, Long memberId, String indexName) {
+        return checkUsageLimit(memberId, sessionId)
+                .flatMap(optionalResponse ->
+                        Mono.justOrEmpty(optionalResponse)
+                )
+                .switchIfEmpty(Mono.defer(() ->
+                    processChatRequest(memberId, sessionId, query, indexName)
+                ));
     }
 
-    public Mono<UserChatResponse> requestChat(String query, UUID sessionId, Long memberId, String indexName) {
-        return Mono.fromCallable(() -> Optional.ofNullable(chatUsageLimitService.checkAndIncrementUsageLimit(memberId, sessionId)))
-                .subscribeOn(Schedulers.boundedElastic())
-                .flatMap(optionalResponse -> {
-                    if (optionalResponse.isPresent()) {
-                        return Mono.just(optionalResponse.get());
-                    }
+    /**
+     * 일일 채팅 제한에 도달했는지 여부를 확인한다.
+     */
+    private Mono<Optional<UserChatResponse>> checkUsageLimit(Long memberId, UUID sessionID) {
+        return Mono.fromCallable(() ->
+                Optional.ofNullable(chatUsageLimitService.checkAndIncrementUsageLimit(memberId, sessionID))
+        ).subscribeOn(Schedulers.boundedElastic());
+    }
 
-                    ServerChatRequest request = ServerChatRequest.of(query, null, sessionId, indexName);
 
-                    return chatClient.post()
-                            .uri("/api/chat")
-                            .bodyValue(request)
-                            .retrieve()
-                            .onStatus(
-                                    status -> status.is4xxClientError() || status.is5xxServerError(),
-                                    res -> res.bodyToMono(String.class)
-                                            .flatMap(error -> Mono.error(new RuntimeException(error)))
-                            )
-                            .bodyToMono(ServerChatResponse.class)
-                            .map(serverRes -> UserChatResponse.from(sessionId, serverRes));
-                });
+    /**
+     * RAG 서버로 채팅 요청을 보내며, 전후로 사용자 쿼리와 어시스턴트 응답을 DB에 저장한다.
+     */
+    private Mono<UserChatResponse> processChatRequest(Long memberId, UUID sessionId, String query, String indexName) {
+        return findMember(memberId)
+                .flatMap(member ->
+                        chatHistoryService.saveUserQuery(member, sessionId, query, indexName)
+                                .then(ragApiClient.requestChat(ServerChatRequest.of(query, null, sessionId, indexName))
+                                        .onErrorResume(e -> {
+                                            log.info("RAG 서버 오류: {}", e.getMessage());
+                                            return Mono.just(ServerChatResponse.createError("죄송합니다. 답변을 생성하지 못했습니다."));
+                                        }))
+                                .flatMap(serverRes ->
+                                        chatHistoryService.saveAssistantResponse(member, sessionId, serverRes)
+                                                .thenReturn(serverRes)
+                                )
+                                .map(serverRes -> UserChatResponse.from(sessionId, serverRes))
+                );
+    }
+
+    /**
+     * memberId 기준으로 Mono로 감싼 Member객체를 반환하는 헬퍼 함수
+     */
+    private Mono<Member> findMember(Long memberId) {
+        return Mono.fromCallable(() -> memberRepository.findById(memberId)
+                .orElseThrow(() -> new RuntimeException("존재하지 않는 이용자입니다.")))
+                .subscribeOn(Schedulers.boundedElastic());
     }
 }
