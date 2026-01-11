@@ -85,6 +85,10 @@ jwt:
   secret: ${JWT_SECRET}
   access_expiration: ${JWT_ACCESS_EXPIRATION:3600000} # 1시간
   refresh_expiration: ${JWT_REFRESH_EXPIRATION:604800000} # 7일
+  cookie:
+    secure: ${JWT_COOKIE_SECURE}
+    domain: ${JWT_COOKIE_DOMAIN}
+    same-site: Lax
 
 # ============================================
 # MeiliSearch
