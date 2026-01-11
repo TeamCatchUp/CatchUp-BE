@@ -1,5 +1,6 @@
 package com.team.catchup.github.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.team.catchup.github.dto.internal.*;
 import com.team.catchup.github.dto.response.SyncCount;
 import com.team.catchup.github.entity.*;
@@ -10,6 +11,7 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 import static com.team.catchup.common.config.RabbitConfig.*;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -51,22 +53,48 @@ public class GithubProcessor {
     }
 
     /**
-     * Commits 동기화
+     * Commits 동기화 - branch 파라미터 추가 및 FileChange 생성
      */
-    public SyncCount processCommits(GithubRepository repository, String owner, String repo, String since) {
-        log.info("[GITHUB][PROCESSOR] Processing commits for {}/{}", owner, repo);
+    public SyncCount processCommits(GithubRepository repository, String owner, String repo, String branch, String since) {
+        log.info("[GITHUB][PROCESSOR] Processing commits for {}/{} on branch: {}", owner, repo, branch);
 
         try {
-            return githubApiService.getCommits(owner, repo, since)
+            return githubApiService.getCommits(owner, repo, branch, since)
                     .flatMap(commitNode ->
-                        githubApiService.getCommit(owner, repo, commitNode.get("sha").asText())
+                            githubApiService.getCommit(owner, repo, commitNode.get("sha").asText())
                     )
-                    .map(commitDetailNode -> commitMapper.toEntity(commitDetailNode, repository))
                     .collectList()
-                    .map(commits -> {
-                        int saved = persistenceService.saveAllCommits(commits);
+                    .map(commitDetailNodes -> {
+                        List<GithubCommit> commits = new ArrayList<>();
+                        List<GithubFileChange> allFileChanges = new ArrayList<>();
+
+                        for (JsonNode detailNode : commitDetailNodes) {
+                            // Commit 생성
+                            GithubCommit commit = commitMapper.toEntity(detailNode, repository);
+                            commits.add(commit);
+
+                            // FileChange 생성 (files 배열 처리)
+                            JsonNode filesNode = detailNode.get("files");
+                            if (filesNode != null && filesNode.isArray()) {
+                                for (JsonNode fileNode : filesNode) {
+                                    GithubFileChange fileChange = fileChangeMapper.toEntityFromCommit(
+                                            fileNode, repository, commit.getSha()
+                                    );
+                                    allFileChanges.add(fileChange);
+                                }
+                            }
+                        }
+
+                        // 저장
+                        int savedCommits = persistenceService.saveAllCommits(commits);
+                        int savedFiles = persistenceService.saveAllFileChanges(allFileChanges);
+
                         publishCommitMessages(commits);
-                        return SyncCount.of(commits.size(), saved);
+
+                        log.info("[GITHUB][PROCESSOR] Commits saved - Commits: {}, FileChanges: {}",
+                                savedCommits, savedFiles);
+
+                        return SyncCount.of(commits.size(), savedCommits);
                     })
                     .block();
         } catch (Exception e) {
@@ -76,13 +104,13 @@ public class GithubProcessor {
     }
 
     /**
-     * Pull Requests 동기화
+     * Pull Requests 동기화 - branch(base) 파라미터 추가
      */
-    public SyncCount processPullRequests(GithubRepository repository, String owner, String repo, String state, String since) {
-        log.info("[GITHUB][PROCESSOR] Processing pull requests for {}/{}", owner, repo);
+    public SyncCount processPullRequests(GithubRepository repository, String owner, String repo, String branch, String state, String since) {
+        log.info("[GITHUB][PROCESSOR] Processing pull requests for {}/{} with base: {}", owner, repo, branch);
 
         try {
-            return githubApiService.getPullRequests(owner, repo, state, since)
+            return githubApiService.getPullRequests(owner, repo, branch, state, since)
                     .map(prNode -> pullRequestMapper.toEntity(prNode, repository))
                     .collectList()
                     .map(pullRequests -> {
@@ -98,7 +126,7 @@ public class GithubProcessor {
     }
 
     /**
-     * Issues 동기화
+     * Issues 동기화 (branch 무관)
      */
     public SyncCount processIssues(GithubRepository repository, String owner, String repo, String state, String since) {
         log.info("[GITHUB][PROCESSOR] Processing issues for {}/{}", owner, repo);

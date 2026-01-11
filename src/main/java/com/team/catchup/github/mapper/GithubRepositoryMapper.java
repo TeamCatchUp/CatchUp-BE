@@ -19,7 +19,6 @@ public class GithubRepositoryMapper {
                     .owner(apiResponse.get("owner").get("login").asText())
                     .name(apiResponse.get("name").asText())
                     .description(getTextOrNull(apiResponse, "description"))
-                    .defaultBranch(getTextOrNull(apiResponse, "default_branch"))
                     .primaryLanguage(getTextOrNull(apiResponse, "language"))
                     .isPrivate(apiResponse.get("private").asBoolean())
                     .createdAt(parseDateTime(apiResponse.get("created_at").asText()))

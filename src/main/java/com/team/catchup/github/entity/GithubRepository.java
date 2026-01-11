@@ -35,8 +35,8 @@ public class GithubRepository {
     private String description;
 
     // 기본 브랜치명
-    @Column(name = "default_branch")
-    private String defaultBranch;
+    @Column(name = "target_branch")
+    private String targetBranch;
 
     // 주 사용 프로그래밍 언어
     @Column(name = "primary_language")
@@ -83,7 +83,8 @@ public class GithubRepository {
         FAILED
     }
 
-    public void updateSyncStatus(SyncStatus status) {
+    public void updateSyncInfo(String branch, SyncStatus status) {
+        this.targetBranch = branch;
         this.syncStatus = status;
         if (status == SyncStatus.COMPLETED) {
             this.lastSyncedAt = LocalDateTime.now();
