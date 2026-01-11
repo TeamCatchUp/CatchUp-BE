@@ -1,7 +1,6 @@
 package com.team.catchup.github.controller;
 
 import com.team.catchup.auth.user.CustomUserDetails;
-import com.team.catchup.github.dto.GithubSyncStep;
 import com.team.catchup.github.dto.request.GithubFullSyncRequest;
 import com.team.catchup.github.dto.request.GithubRetryRequest;
 import com.team.catchup.github.service.GithubSyncService;
@@ -39,12 +38,16 @@ public class GithubSyncController {
         );
 
         try {
-            githubSyncService.fullSync(userDetails.getMemberId(),
+            githubSyncService.fullSync(
+                    userDetails.getMemberId(),
                     request.owner(),
-                    request.repository());
+                    request.repository(),
+                    request.branch()
+            );
             return ResponseEntity.ok(Map.of(
                     "status", "started",
-                    "message", "Full sync started for " + request.owner() + "/" + request.repository() + "@" + request.branch()
+                    "message", String.format("Full sync started for %s/%s@%s",
+                            request.owner(), request.repository(), request.branch())
             ));
         } catch (Exception e) {
             log.error("[GITHUB][CONTROLLER] Failed to start full sync", e);
@@ -72,13 +75,14 @@ public class GithubSyncController {
                     userDetails.getMemberId(),
                     request.owner(),
                     request.repository(),
+                    request.branch(),
                     request.startFrom()
             );
 
             return ResponseEntity.ok(Map.of(
                     "status", "started",
-                    "message", String.format("Retry sync started for %s/%s from step: %s",
-                            request.owner(), request.repository(), request.startFrom())
+                    "message", String.format("Retry sync started for %s/%s@%s from step: %s",
+                            request.owner(), request.repository(), request.branch(), request.startFrom())
             ));
         } catch (Exception e) {
             log.error("[GITHUB][CONTROLLER] Failed to start retry sync", e);

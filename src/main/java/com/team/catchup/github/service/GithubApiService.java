@@ -1,7 +1,6 @@
 package com.team.catchup.github.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
@@ -12,15 +11,17 @@ import reactor.core.publisher.Mono;
 import java.time.Duration;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class GithubApiService {
 
-    @Qualifier("githubWebClient")
     private final WebClient githubWebClient;
 
     private static final int PER_PAGE = 100;
-    private static final Duration RATE_LIMIT_DELAY = Duration.ofMillis(1000); // GitHub API rate limit: 5000 requests/hour (increased for stability)
+    private static final Duration RATE_LIMIT_DELAY = Duration.ofMillis(1000); // GitHub API rate limit: 5000 requests/hour
+
+    public GithubApiService(@Qualifier("githubWebClient") WebClient githubWebClient) {
+        this.githubWebClient = githubWebClient;
+    }
 
     /**
      * Repository 정보 조회
@@ -40,11 +41,12 @@ public class GithubApiService {
      * Commits 조회 (페이지네이션)
      * since 파라미터는 이후 증분 동기화에 사용할 예정 -> 특정 시점 이후의 커밋만 가져오기
      */
-    public Flux<JsonNode> getCommits(String owner, String repo, String since) {
-        log.info("[GITHUB][API] Fetching commits for {}/{}", owner, repo);
+    public Flux<JsonNode> getCommits(String owner, String repo, String branch, String since) {
+        log.info("[GITHUB][API] Fetching commits for {}/{} on branch: {}", owner, repo, branch);
 
-        return fetchPaginatedData(
+        return fetchPaginatedCommits(
                 "/repos/" + owner + "/" + repo + "/commits",
+                branch,
                 since
         );
     }
@@ -66,26 +68,16 @@ public class GithubApiService {
     /**
      * Pull Requests 조회 (페이지네이션)
      */
-    public Flux<JsonNode> getPullRequests(String owner, String repo, String state, String since) {
-        log.info("[GITHUB][API] Fetching pull requests for {}/{} with state: {}", owner, repo, state);
+    public Flux<JsonNode> getPullRequests(String owner, String repo, String base, String state, String since) {
+        log.info("[GITHUB][API] Fetching pull requests for {}/{} with base: {}, state: {}",
+                owner, repo, base, state);
 
-        String baseUri = "/repos/" + owner + "/" + repo + "/pulls";
-
-        return fetchPaginatedDataWithState(baseUri, state, since);
-    }
-
-    /**
-     * 특정 Pull Request 상세 조회
-     */
-    public Mono<JsonNode> getPullRequest(String owner, String repo, int number) {
-        String url = String.format("/repos/%s/%s/pulls/%d", owner, repo, number);
-        log.info("[GITHUB][API] Fetching pull request: #{}", number);
-
-        return githubWebClient.get()
-                .uri(url)
-                .retrieve()
-                .bodyToMono(JsonNode.class)
-                .delayElement(RATE_LIMIT_DELAY);
+        return fetchPaginatedPullRequests(
+                "/repos/" + owner + "/" + repo + "/pulls",
+                base,
+                state,
+                since
+        );
     }
 
     /**
@@ -95,7 +87,7 @@ public class GithubApiService {
         String url = String.format("/repos/%s/%s/pulls/%d/files", owner, repo, number);
         log.info("[GITHUB][API] Fetching PR files: #{}", number);
 
-        return fetchPaginatedDataSimple(url);
+        return fetchPaginatedData(url);
     }
 
     /**
@@ -104,9 +96,11 @@ public class GithubApiService {
     public Flux<JsonNode> getIssues(String owner, String repo, String state, String since) {
         log.info("[GITHUB][API] Fetching issues for {}/{} with state: {}", owner, repo, state);
 
-        String baseUri = "/repos/" + owner + "/" + repo + "/issues";
-
-        return fetchPaginatedDataWithState(baseUri, state, since);
+        return fetchPaginatedIssues(
+                "/repos/" + owner + "/" + repo + "/issues",
+                state,
+                since
+        );
     }
 
     /**
@@ -116,7 +110,7 @@ public class GithubApiService {
         String url = String.format("/repos/%s/%s/issues/%d/comments", owner, repo, issueNumber);
         log.info("[GITHUB][API] Fetching issue comments: #{}", issueNumber);
 
-        return fetchPaginatedDataSimple(url);
+        return fetchPaginatedData(url);
     }
 
     /**
@@ -126,7 +120,7 @@ public class GithubApiService {
         String url = String.format("/repos/%s/%s/pulls/%d/reviews", owner, repo, number);
         log.info("[GITHUB][API] Fetching PR reviews: #{}", number);
 
-        return fetchPaginatedDataSimple(url);
+        return fetchPaginatedData(url);
     }
 
     /**
@@ -136,124 +130,127 @@ public class GithubApiService {
         String url = String.format("/repos/%s/%s/pulls/%d/comments", owner, repo, number);
         log.info("[GITHUB][API] Fetching PR review comments: #{}", number);
 
-        return fetchPaginatedDataSimple(url);
+        return fetchPaginatedData(url);
+    }
+
+    // ==================== Private Pagination Methods ====================
+
+    /**
+     * Commits용 페이지네이션 (sha 파라미터)
+     */
+    private Flux<JsonNode> fetchPaginatedCommits(String baseUri, String branch, String since) {
+        return executePagination(uriBuilder -> {
+            String uri = uriBuilder
+                    .append(baseUri)
+                    .append("?sha=").append(branch)
+                    .append("&per_page=").append(PER_PAGE)
+                    .toString();
+
+            if (since != null && !since.isEmpty()) {
+                uri += "&since=" + since;
+            }
+
+            return uri;
+        });
     }
 
     /**
-     * Commit Comments 조회
+     * Pull Requests용 페이지네이션 (base, state 파라미터)
      */
-    public Flux<JsonNode> getCommitComments(String owner, String repo, String sha) {
-        String url = String.format("/repos/%s/%s/commits/%s/comments", owner, repo, sha);
-        log.info("[GITHUB][API] Fetching commit comments: {}", sha);
+    private Flux<JsonNode> fetchPaginatedPullRequests(String baseUri, String base, String state, String since) {
+        return executePagination(uriBuilder -> {
+            String uri = uriBuilder
+                    .append(baseUri)
+                    .append("?base=").append(base)
+                    .append("&state=").append(state)
+                    .append("&per_page=").append(PER_PAGE)
+                    .toString();
 
-        return fetchPaginatedDataSimple(url);
+            if (since != null && !since.isEmpty()) {
+                uri += "&since=" + since;
+            }
+
+            return uri;
+        });
     }
 
     /**
-     * 페이지네이션 데이터 조회 (state, since 파라미터 포함)
+     * Issues용 페이지네이션 (state 파라미터)
      */
-    private Flux<JsonNode> fetchPaginatedDataWithState(String baseUri, String state, String since) {
-        return Flux.range(1, 1000) // 최대 1000페이지 (100,000개 항목)
+    private Flux<JsonNode> fetchPaginatedIssues(String baseUri, String state, String since) {
+        return executePagination(uriBuilder -> {
+            String uri = uriBuilder
+                    .append(baseUri)
+                    .append("?state=").append(state)
+                    .append("&per_page=").append(PER_PAGE)
+                    .toString();
+
+            if (since != null && !since.isEmpty()) {
+                uri += "&since=" + since;
+            }
+
+            return uri;
+        });
+    }
+
+    /**
+     * 기타(Comments, Reviews, Files)용 페이지네이션
+     */
+    private Flux<JsonNode> fetchPaginatedData(String baseUri) {
+        return executePagination(uriBuilder ->
+                uriBuilder
+                        .append(baseUri)
+                        .append("?per_page=").append(PER_PAGE)
+                        .toString()
+        );
+    }
+
+    private Flux<JsonNode> executePagination(UriBuilderFunction uriBuilderFunction) {
+        return Flux.range(1, 1000)
                 .concatMap(page -> {
-                    String uri = baseUri + "?state=" + state + "&per_page=" + PER_PAGE + "&page=" + page;
-                    if (since != null && !since.isEmpty()) {
-                        uri += "&since=" + since;
-                    }
+                    StringBuilder uriBuilder = new StringBuilder();
+                    String baseUri = uriBuilderFunction.buildUri(uriBuilder);
+                    String uri = baseUri + "&page=" + page;
 
-                    return githubWebClient.get()
-                            .uri(uri)
-                            .retrieve()
-                            .bodyToFlux(JsonNode.class)
-                            .collectList()
-                            .flatMapMany(items -> {
-                                if (items.isEmpty()) {
-                                    log.info("[GITHUB][API] No more items at page {}, stopping pagination", page);
-                                    return Flux.error(new StopPaginationException());
-                                }
-                                log.info("[GITHUB][API] Fetched page {}: {} items", page, items.size());
-                                return Mono.delay(RATE_LIMIT_DELAY)
-                                        .thenMany(Flux.fromIterable(items));
-                            });
+                    return fetchPage(uri);
                 })
-                .onErrorResume(e -> {
-                    if (e instanceof StopPaginationException) {
-                        log.info("[GITHUB][API] Pagination completed");
-                        return Flux.empty();
+                .onErrorResume(this::handlePaginationError);
+    }
+
+    private Flux<JsonNode> fetchPage(String uri) {
+        return githubWebClient.get()
+                .uri(uri)
+                .retrieve()
+                .bodyToFlux(JsonNode.class)
+                .collectList()
+                .flatMapMany(items -> {
+                    if (items.isEmpty()) {
+                        log.info("[GITHUB][API] No more items, stopping pagination");
+                        return Flux.error(new StopPaginationException());
                     }
-                    log.error("[GITHUB][API] Error during pagination", e);
-                    return Flux.empty();
+                    log.info("[GITHUB][API] Fetched {} items", items.size());
+                    return Mono.delay(RATE_LIMIT_DELAY)
+                            .thenMany(Flux.fromIterable(items));
                 });
     }
 
+    private Flux<JsonNode> handlePaginationError(Throwable e) {
+        if (e instanceof StopPaginationException) {
+            log.info("[GITHUB][API] Pagination completed");
+            return Flux.empty();
+        }
+        log.error("[GITHUB][API] Error during pagination", e);
+        return Flux.empty();
+    }
+
+    // ==================== Functional Interface & Exception ====================
+
+    @FunctionalInterface
+    private interface UriBuilderFunction {
+        String buildUri(StringBuilder builder);
+    }
+
+    // 추후 ErrorCode으로 이동
     private static class StopPaginationException extends RuntimeException {
-    }
-
-    /**
-     * 페이지네이션 데이터 조회 (since 파라미터 포함)
-     */
-    private Flux<JsonNode> fetchPaginatedData(String baseUri, String since) {
-        return Flux.range(1, 1000) // 최대 1000페이지
-                .concatMap(page -> {
-                    String uri = baseUri + "?per_page=" + PER_PAGE + "&page=" + page;
-                    if (since != null && !since.isEmpty()) {
-                        uri += "&since=" + since;
-                    }
-
-                    return githubWebClient.get()
-                            .uri(uri)
-                            .retrieve()
-                            .bodyToFlux(JsonNode.class)
-                            .collectList()
-                            .flatMapMany(items -> {
-                                if (items.isEmpty()) {
-                                    log.info("[GITHUB][API] No more items at page {}, stopping pagination", page);
-                                    return Flux.error(new StopPaginationException());
-                                }
-                                log.info("[GITHUB][API] Fetched page {}: {} items", page, items.size());
-                                return Mono.delay(RATE_LIMIT_DELAY)
-                                        .thenMany(Flux.fromIterable(items));
-                            });
-                })
-                .onErrorResume(e -> {
-                    if (e instanceof StopPaginationException) {
-                        log.info("[GITHUB][API] Pagination completed");
-                        return Flux.empty();
-                    }
-                    log.error("[GITHUB][API] Error during pagination", e);
-                    return Flux.empty();
-                });
-    }
-
-    /**
-     * 단순 페이지네이션 데이터 조회
-     */
-    private Flux<JsonNode> fetchPaginatedDataSimple(String baseUri) {
-        return Flux.range(1, 1000) // 최대 1000페이지
-                .concatMap(page -> {
-                    String uri = baseUri + "?per_page=" + PER_PAGE + "&page=" + page;
-
-                    return githubWebClient.get()
-                            .uri(uri)
-                            .retrieve()
-                            .bodyToFlux(JsonNode.class)
-                            .collectList()
-                            .flatMapMany(items -> {
-                                if (items.isEmpty()) {
-                                    log.info("[GITHUB][API] No more items at page {}, stopping pagination", page);
-                                    return Flux.error(new StopPaginationException());
-                                }
-                                log.info("[GITHUB][API] Fetched page {}: {} items", page, items.size());
-                                return Mono.delay(RATE_LIMIT_DELAY)
-                                        .thenMany(Flux.fromIterable(items));
-                            });
-                })
-                .onErrorResume(e -> {
-                    if (e instanceof StopPaginationException) {
-                        log.info("[GITHUB][API] Pagination completed");
-                        return Flux.empty();
-                    }
-                    log.error("[GITHUB][API] Error during pagination", e);
-                    return Flux.empty();
-                });
     }
 }
