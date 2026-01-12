@@ -8,14 +8,12 @@ import java.util.List;
 @Builder
 public record ServerChatResponse(
         @NotBlank String answer,
-        List<Source> sources,
-        String modelName // TODO: FastAPI 쪽에서 호환 필요
+        List<Source> sources
 ) {
     public static ServerChatResponse createError(String errorMessage) {
         return ServerChatResponse.builder()
                 .answer(errorMessage)
                 .sources(List.of())
-                .modelName("System")
                 .build();
     }
 }

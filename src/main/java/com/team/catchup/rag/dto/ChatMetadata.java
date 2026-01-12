@@ -8,6 +8,6 @@ import java.util.List;
 public record ChatMetadata(
         List<String> indexList,
         List<Source> sources,
-        String modelName
+        Double processTime
 ) {
 }
