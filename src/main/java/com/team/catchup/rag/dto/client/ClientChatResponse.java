@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.UUID;
 
 public record ClientChatResponse(
-        @NotNull UUID sesionId,
+        @NotNull UUID sessionId,
         @NotBlank String answer,
         List<ClientSource> sources
 ) {
