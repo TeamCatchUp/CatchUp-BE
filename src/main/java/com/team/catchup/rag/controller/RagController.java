@@ -1,13 +1,12 @@
 package com.team.catchup.rag.controller;
 
 import com.team.catchup.auth.user.CustomUserDetails;
-import com.team.catchup.rag.dto.UserChatRequest;
-import com.team.catchup.rag.dto.UserChatResponse;
+import com.team.catchup.rag.dto.user.UserChatRequest;
+import com.team.catchup.rag.dto.user.UserChatResponse;
 import com.team.catchup.rag.service.RagService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -24,7 +23,7 @@ public class RagController {
             @Valid @RequestBody UserChatRequest request,
             @AuthenticationPrincipal CustomUserDetails userDetails
             ) {
-        return ragService.requestChat(request.query(), request.sessionId(), userDetails.getMemberId(), request.indexName())
+        return ragService.requestChat(request.query(), request.sessionId(), userDetails.getMemberId(), request.indexList())
                 .map(ResponseEntity::ok);
     }
 }

@@ -1,8 +1,8 @@
 package com.team.catchup.rag.entity;
 
 import com.team.catchup.member.entity.Member;
-import com.team.catchup.rag.dto.ChatMetadata;
-import com.team.catchup.rag.dto.ServerChatResponse;
+import com.team.catchup.rag.dto.server.ChatMetadata;
+import com.team.catchup.rag.dto.server.ServerChatResponse;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -13,7 +13,6 @@ import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 @Entity
@@ -64,16 +63,16 @@ public class ChatHistory {
             Member member,
             String query,
             List<String> indexList
-    ){
+    ) {
         return ChatHistory.builder()
                 .sessionId(sessionId)
                 .member(member)
                 .content(query)
                 .role("user")
                 .metadata(
-                    ChatMetadata.builder()
-                        .indexList(indexList)
-                        .build())
+                        ChatMetadata.builder()
+                                .indexList(indexList)
+                                .build())
                 .build();
     }
 
@@ -90,7 +89,7 @@ public class ChatHistory {
                 .role("assistant")
                 .metadata(ChatMetadata.builder()
                         .sources(response.sources())
-                        .modelName(response.modelName())
+                        .processTime(response.processTime())
                         .build())
                 .build();
     }

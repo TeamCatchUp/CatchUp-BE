@@ -1,7 +1,7 @@
 package com.team.catchup.rag.service;
 
 import com.team.catchup.member.entity.Member;
-import com.team.catchup.rag.dto.ServerChatResponse;
+import com.team.catchup.rag.dto.server.ServerChatResponse;
 import com.team.catchup.rag.entity.ChatHistory;
 import com.team.catchup.rag.repository.ChatHistoryRepository;
 import lombok.RequiredArgsConstructor;
@@ -20,9 +20,9 @@ public class ChatHistoryService {
     /**
      * 사용자 쿼리와 메타데이터를 DB에 저장한다.
      */
-    public Mono<ChatHistory> saveUserQuery(Member member, UUID sessionId, String query, String indexName) {
+    public Mono<ChatHistory> saveUserQuery(Member member, UUID sessionId, String query, List<String> indexList) {
         return Mono.fromCallable(() -> {
-            ChatHistory userLog = ChatHistory.createUserInfo(sessionId, member, query, List.of(indexName));
+            ChatHistory userLog = ChatHistory.createUserInfo(sessionId, member, query, indexList);
             return chatHistoryRepository.save(userLog);
         }).subscribeOn(Schedulers.boundedElastic());
     }

@@ -1,6 +1,6 @@
 package com.team.catchup.rag.service;
 
-import com.team.catchup.rag.dto.UserChatResponse;
+import com.team.catchup.rag.dto.user.UserChatResponse;
 import com.team.catchup.rag.entity.ChatUsageLimit;
 import com.team.catchup.rag.repository.ChatUsageLimitRepository;
 import lombok.RequiredArgsConstructor;

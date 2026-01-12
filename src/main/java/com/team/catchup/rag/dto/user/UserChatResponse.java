@@ -1,5 +1,6 @@
-package com.team.catchup.rag.dto;
+package com.team.catchup.rag.dto.user;
 
+import com.team.catchup.rag.dto.server.ServerChatResponse;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
@@ -9,28 +10,14 @@ import java.util.UUID;
 public record UserChatResponse(
         @NotNull UUID sesionId,
         @NotBlank String answer,
-        List<Source> sources
+        List<ClientSource> sources
 ) {
-    public record Source(
-            String sourceType,
-            String content,
-            String filePath,
-            String htmlUrl,
-            String language
-    ){}
-
     public static UserChatResponse from(
             UUID sessionId,
             ServerChatResponse serverResponse
     ) {
-        List<Source> clientSources = serverResponse.sources().stream()
-                .map(s -> new Source(
-                        s.sourceType(),
-                        s.content(),
-                        s.filePath(),
-                        s.htmlUrl(),
-                        s.language()
-                ))
+        List<ClientSource> clientSources = serverResponse.sources().stream()
+                .map(ClientSource::from)
                 .toList();
 
         return new UserChatResponse(

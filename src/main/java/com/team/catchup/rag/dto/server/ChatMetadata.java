@@ -1,4 +1,4 @@
-package com.team.catchup.rag.dto;
+package com.team.catchup.rag.dto.server;
 
 import lombok.Builder;
 
