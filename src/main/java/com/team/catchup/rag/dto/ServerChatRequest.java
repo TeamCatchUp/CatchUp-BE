@@ -4,6 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 
+import java.util.List;
 import java.util.UUID;
 
 @Builder
@@ -11,18 +12,18 @@ public record ServerChatRequest(
         @NotBlank String query,
         String role, // 페르소나
         @NotNull UUID session_id,
-        @NotBlank String index_name
+        @NotNull List<String> index_list
 ) {
     public static ServerChatRequest of(String query,
                                        String role,
                                        UUID sessionId,
-                                       String index_name
-    ){
+                                       List<String> indexList
+    ) {
         return ServerChatRequest.builder()
                 .query(query)
                 .role(role)
                 .session_id(sessionId)
-                .index_name(index_name)
+                .index_list(indexList)
                 .build();
     }
 }
