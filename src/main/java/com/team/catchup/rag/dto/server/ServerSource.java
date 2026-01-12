@@ -1,8 +1,18 @@
-package com.team.catchup.rag.dto;
+package com.team.catchup.rag.dto.server;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Builder;
 
-public record Source (
+@Builder
+public record ServerSource(
+        Integer index,  // LLM이 답변에 직접 인용한 문서 번호
+
+        @JsonProperty("is_cited")
+        Boolean isCited, // LLM이 답변에 활용했는지 여부
+
+        @JsonProperty("relevance_score")
+        Double relevanceScore,
+
         @JsonProperty("source_type")
         String sourceType,
 
@@ -20,4 +30,5 @@ public record Source (
         String htmlUrl,
 
         String language
-){}
+) {
+}

@@ -1,7 +1,7 @@
 package com.team.catchup.rag.client;
 
-import com.team.catchup.rag.dto.ServerChatRequest;
-import com.team.catchup.rag.dto.ServerChatResponse;
+import com.team.catchup.rag.dto.server.ServerChatRequest;
+import com.team.catchup.rag.dto.server.ServerChatResponse;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
