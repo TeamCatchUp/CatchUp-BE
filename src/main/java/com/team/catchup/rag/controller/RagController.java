@@ -1,8 +1,8 @@
 package com.team.catchup.rag.controller;
 
 import com.team.catchup.auth.user.CustomUserDetails;
-import com.team.catchup.rag.dto.user.UserChatRequest;
-import com.team.catchup.rag.dto.user.UserChatResponse;
+import com.team.catchup.rag.dto.client.ClientChatRequest;
+import com.team.catchup.rag.dto.client.ClientChatResponse;
 import com.team.catchup.rag.service.RagService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -19,8 +19,8 @@ public class RagController {
     private final RagService ragService;
 
     @PostMapping("/api/chat")
-    public Mono<ResponseEntity<UserChatResponse>> getChatResponse(
-            @Valid @RequestBody UserChatRequest request,
+    public Mono<ResponseEntity<ClientChatResponse>> getChatResponse(
+            @Valid @RequestBody ClientChatRequest request,
             @AuthenticationPrincipal CustomUserDetails userDetails
             ) {
         return ragService.requestChat(request.query(), request.sessionId(), userDetails.getMemberId(), request.indexList())

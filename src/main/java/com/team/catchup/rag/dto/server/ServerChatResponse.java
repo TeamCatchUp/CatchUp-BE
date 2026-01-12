@@ -10,7 +10,7 @@ import java.util.List;
 public record ServerChatResponse(
         @NotBlank String answer,
 
-        List<Source> sources,
+        List<ServerSource> sources,
 
         @JsonProperty("process_time")
         Double processTime

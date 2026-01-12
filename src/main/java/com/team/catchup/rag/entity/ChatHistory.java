@@ -88,7 +88,7 @@ public class ChatHistory {
                 .content(response.answer())
                 .role("assistant")
                 .metadata(ChatMetadata.builder()
-                        .sources(response.sources())
+                        .serverSources(response.sources())
                         .processTime(response.processTime())
                         .build())
                 .build();

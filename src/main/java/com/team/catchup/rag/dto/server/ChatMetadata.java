@@ -7,7 +7,7 @@ import java.util.List;
 @Builder
 public record ChatMetadata(
         List<String> indexList,
-        List<Source> sources,
+        List<ServerSource> serverSources,
         Double processTime
 ) {
 }

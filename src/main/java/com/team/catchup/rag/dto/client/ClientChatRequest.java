@@ -1,4 +1,4 @@
-package com.team.catchup.rag.dto.user;
+package com.team.catchup.rag.dto.client;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -6,7 +6,7 @@ import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.UUID;
 
-public record UserChatRequest(
+public record ClientChatRequest(
         @NotBlank String query,
         @NotNull UUID sessionId,
         @NotNull List<String> indexList // 중간 시연용
