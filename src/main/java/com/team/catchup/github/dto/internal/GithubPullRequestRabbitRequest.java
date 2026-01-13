@@ -9,40 +9,32 @@ import lombok.Getter;
 @Builder
 public class GithubPullRequestRabbitRequest {
 
-    @JsonProperty("pull_request_id")
-    private Long pullRequestId;
-
     @JsonProperty("repository_id")
     private Long repositoryId;
 
-    @JsonProperty("repository_name")
-    private String repositoryName;
+    @JsonProperty("owner")
+    private String owner;
 
-    @JsonProperty("number")
-    private Integer number;
+    @JsonProperty("repo_name")
+    private String repoName;
 
-    @JsonProperty("title")
-    private String title;
+    @JsonProperty("branch")
+    private String branch;
 
-    @JsonProperty("author_login")
-    private String authorLogin;
+    @JsonProperty("pr_number")
+    private Integer prNumber;
 
-    @JsonProperty("status")
-    private String status;
-
-    @JsonProperty("html_url")
-    private String htmlUrl;
+    @JsonProperty("github_token")
+    private String githubToken;
 
     public static GithubPullRequestRabbitRequest from(GithubPullRequest pullRequest) {
         return GithubPullRequestRabbitRequest.builder()
-            .pullRequestId(pullRequest.getPullRequestId())
             .repositoryId(pullRequest.getRepository().getRepositoryId())
-            .repositoryName(pullRequest.getRepository().getOwner() + "/" + pullRequest.getRepository().getName())
-            .number(pullRequest.getNumber())
-            .title(pullRequest.getTitle())
-            .authorLogin(pullRequest.getAuthorLogin())
-            .status(pullRequest.getStatus().name())
-            .htmlUrl(pullRequest.getHtmlUrl())
+            .owner(pullRequest.getRepository().getOwner())
+            .repoName(pullRequest.getRepository().getName())
+            .branch(pullRequest.getBaseBranch())
+            .prNumber(pullRequest.getNumber())
+            .githubToken(null) // TODO: Private 저장소용 토큰이 필요한 경우 추가
             .build();
     }
 }

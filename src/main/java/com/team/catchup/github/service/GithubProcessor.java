@@ -34,15 +34,18 @@ public class GithubProcessor {
     /**
      * Repository 메타데이터 동기화
      */
-    public GithubRepository processRepository(String owner, String repo) {
-        log.info("[GITHUB][PROCESSOR] Processing repository: {}/{}", owner, repo);
+    public GithubRepository processRepository(String owner, String repo, String branch) {
+        log.info("[GITHUB][PROCESSOR] Processing repository: {}/{} on branch: {}", owner, repo, branch);
 
         try {
             return githubApiService.getRepository(owner, repo)
                     .map(repositoryMapper::toEntity)
                     .map(repository -> {
+                        // targetBranch 설정
+                        repository.updateSyncInfo(branch, GithubRepository.SyncStatus.IN_PROGRESS);
                         GithubRepository saved = persistenceService.saveRepository(repository);
-                        log.info("[GITHUB][PROCESSOR] Repository saved: {}/{}", owner, repo);
+                        publishRepositoryMessage(saved);
+                        log.info("[GITHUB][PROCESSOR] Repository saved: {}/{} with branch: {}", owner, repo, branch);
                         return saved;
                     })
                     .block();
@@ -88,8 +91,6 @@ public class GithubProcessor {
                         // 저장
                         int savedCommits = persistenceService.saveAllCommits(commits);
                         int savedFiles = persistenceService.saveAllFileChanges(allFileChanges);
-
-                        publishCommitMessages(commits);
 
                         log.info("[GITHUB][PROCESSOR] Commits saved - Commits: {}, FileChanges: {}",
                                 savedCommits, savedFiles);
@@ -172,7 +173,6 @@ public class GithubProcessor {
                     .collectList()
                     .map(reviews -> {
                         int saved = persistenceService.saveAllReviews(reviews);
-                        publishReviewMessages(reviews);
                         return SyncCount.of(reviews.size(), saved);
                     })
                     .block();
@@ -206,7 +206,6 @@ public class GithubProcessor {
                     .collectList()
                     .map(comments -> {
                         int saved = persistenceService.saveAllComments(comments);
-                        publishCommentMessages(comments);
                         return SyncCount.of(comments.size(), saved);
                     })
                     .block();
@@ -240,7 +239,6 @@ public class GithubProcessor {
                     .collectList()
                     .map(comments -> {
                         int saved = persistenceService.saveAllComments(comments);
-                        publishCommentMessages(comments);
                         return SyncCount.of(comments.size(), saved);
                     })
                     .block();
@@ -285,15 +283,14 @@ public class GithubProcessor {
 
     // ==================== RabbitMQ Publishing ====================
 
-    private void publishCommitMessages(List<GithubCommit> commits) {
+    private void publishRepositoryMessage(GithubRepository repository) {
         try {
-            log.info("[GITHUB][MQ] Publishing {} commits to RabbitMQ", commits.size());
-            for (GithubCommit commit : commits) {
-                GithubCommitRabbitRequest request = GithubCommitRabbitRequest.from(commit);
-                rabbitTemplate.convertAndSend(GITHUB_COMMIT_QUEUE, request);
-            }
+            log.info("[GITHUB][MQ] Publishing repository to RabbitMQ: {}/{}",
+                    repository.getOwner(), repository.getName());
+            GithubRepositoryRabbitRequest request = GithubRepositoryRabbitRequest.from(repository);
+            rabbitTemplate.convertAndSend(GITHUB_REPOSITORY_QUEUE, request);
         } catch (Exception e) {
-            log.error("[GITHUB][MQ] Failed to publish commit messages", e);
+            log.error("[GITHUB][MQ] Failed to publish repository message", e);
         }
     }
 
@@ -318,30 +315,6 @@ public class GithubProcessor {
             }
         } catch (Exception e) {
             log.error("[GITHUB][MQ] Failed to publish issue messages", e);
-        }
-    }
-
-    private void publishCommentMessages(List<GithubComment> comments) {
-        try {
-            log.info("[GITHUB][MQ] Publishing {} comments to RabbitMQ", comments.size());
-            for (GithubComment comment : comments) {
-                GithubCommentRabbitRequest request = GithubCommentRabbitRequest.from(comment);
-                rabbitTemplate.convertAndSend(GITHUB_COMMENT_QUEUE, request);
-            }
-        } catch (Exception e) {
-            log.error("[GITHUB][MQ] Failed to publish comment messages", e);
-        }
-    }
-
-    private void publishReviewMessages(List<GithubReview> reviews) {
-        try {
-            log.info("[GITHUB][MQ] Publishing {} reviews to RabbitMQ", reviews.size());
-            for (GithubReview review : reviews) {
-                GithubReviewRabbitRequest request = GithubReviewRabbitRequest.from(review);
-                rabbitTemplate.convertAndSend(GITHUB_REVIEW_QUEUE, request);
-            }
-        } catch (Exception e) {
-            log.error("[GITHUB][MQ] Failed to publish review messages", e);
         }
     }
 }
