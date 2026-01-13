@@ -9,11 +9,9 @@ import org.springframework.context.annotation.Configuration;
 public class RabbitConfig {
 
     public static final String QUEUE_NAME = "notion_sync_queue";
-    public static final String GITHUB_COMMIT_QUEUE = "github_commit_queue";
+    public static final String GITHUB_REPOSITORY_QUEUE = "github_repository_queue";
     public static final String GITHUB_PULL_REQUEST_QUEUE = "github_pull_request_queue";
     public static final String GITHUB_ISSUE_QUEUE = "github_issue_queue";
-    public static final String GITHUB_COMMENT_QUEUE = "github_comment_queue";
-    public static final String GITHUB_REVIEW_QUEUE = "github_review_queue";
 
     @Bean
     public Queue notionSyncQueue() {
@@ -22,8 +20,8 @@ public class RabbitConfig {
     }
 
     @Bean
-    public Queue githubCommitQueue() {
-        return new Queue(GITHUB_COMMIT_QUEUE, false);
+    public Queue githubRepositoryQueue() {
+        return new Queue(GITHUB_REPOSITORY_QUEUE, false);
     }
 
     @Bean
@@ -34,16 +32,6 @@ public class RabbitConfig {
     @Bean
     public Queue githubIssueQueue() {
         return new Queue(GITHUB_ISSUE_QUEUE, false);
-    }
-
-    @Bean
-    public Queue githubCommentQueue() {
-        return new Queue(GITHUB_COMMENT_QUEUE, false);
-    }
-
-    @Bean
-    public Queue githubReviewQueue() {
-        return new Queue(GITHUB_REVIEW_QUEUE, false);
     }
 
     @Bean

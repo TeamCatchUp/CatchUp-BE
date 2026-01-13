@@ -121,11 +121,11 @@ public class GithubSyncService {
      * Repository 메타데이터만 동기화
      */
     @Async
-    public void syncRepositoryMetadata(String userId, String owner, String repo) {
-        log.info("[GITHUB][SYNC] Syncing repository metadata for {}/{}", owner, repo);
+    public void syncRepositoryMetadata(String userId, String owner, String repo, String branch) {
+        log.info("[GITHUB][SYNC] Syncing repository metadata for {}/{} on branch: {}", owner, repo, branch);
 
         try {
-            githubProcessor.processRepository(owner, repo);
+            githubProcessor.processRepository(owner, repo, branch);
             log.info("[GITHUB][SYNC] Repository metadata synced for {}/{}", owner, repo);
         } catch (Exception e) {
             log.error("[GITHUB][SYNC] Failed to sync repository metadata for {}/{}", owner, repo, e);
@@ -205,14 +205,10 @@ public class GithubSyncService {
         publishSimpleMessage(userId, SseEventType.IN_PROGRESS,
                 "Syncing repository metadata for " + repositoryName);
 
-        GithubRepository repository = githubProcessor.processRepository(owner, repo);
+        GithubRepository repository = githubProcessor.processRepository(owner, repo, branch);
         if (repository == null) {
             throw new IllegalStateException("Failed to sync repository metadata for " + repositoryName);
         }
-
-        // syncedBranch 설정
-        repository.updateSyncInfo(branch, GithubRepository.SyncStatus.IN_PROGRESS);
-        persistenceService.saveRepository(repository);
 
         GithubSyncProgress progress = GithubSyncProgress.of(
                 GithubSyncStep.REPOSITORY_INFO,
