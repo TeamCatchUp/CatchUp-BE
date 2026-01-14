@@ -13,7 +13,6 @@ import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
 
 @Entity
 @Getter
@@ -25,7 +24,9 @@ public class ChatHistory {
     @SequenceGenerator(name = "chat_history_seq", sequenceName = "chat_history_id_seq", allocationSize = 1)
     private Long id;
 
-    private UUID sessionId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "session_id")
+    private ChatRoom chatRoom;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "member_id")
@@ -44,13 +45,13 @@ public class ChatHistory {
 
     @Builder
     private ChatHistory(
-            UUID sessionId,
+            ChatRoom chatRoom,
             Member member,
             String content,
             String role,
             ChatMetadata metadata
     ) {
-        this.sessionId = sessionId;
+        this.chatRoom = chatRoom;
         this.member = member;
         this.content = content;
         this.role = role;
@@ -59,13 +60,13 @@ public class ChatHistory {
     }
 
     public static ChatHistory createUserInfo(
-            UUID sessionId,
+            ChatRoom chatRoom,
             Member member,
             String query,
             List<String> indexList
     ) {
         return ChatHistory.builder()
-                .sessionId(sessionId)
+                .chatRoom(chatRoom)
                 .member(member)
                 .content(query)
                 .role("user")
@@ -78,12 +79,12 @@ public class ChatHistory {
 
     // Assistant
     public static ChatHistory createAssistantInfo(
-            UUID sessionId,
+            ChatRoom chatRoom,
             Member member,
             ServerChatResponse response
     ) {
         return ChatHistory.builder()
-                .sessionId(sessionId)
+                .chatRoom(chatRoom)
                 .member(member)
                 .content(response.answer())
                 .role("assistant")
