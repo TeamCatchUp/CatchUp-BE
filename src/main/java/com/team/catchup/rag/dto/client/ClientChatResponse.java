@@ -7,12 +7,16 @@ import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * Client에세 전달할 LLM이 생성한 최종 답변과 출처 목록
+ */
+
 public record ClientChatResponse(
         @NotNull UUID sessionId,
         @NotBlank String answer,
         List<ClientSource> sources
 ) {
-    public static ClientChatResponse from(
+    public static ClientChatResponse createFinalResponse(
             UUID sessionId,
             ServerChatResponse serverResponse
     ) {

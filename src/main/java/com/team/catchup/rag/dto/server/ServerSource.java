@@ -3,6 +3,10 @@ package com.team.catchup.rag.dto.server;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 
+/**
+ * FastAPI -> Spring 최종 답변 생성 시에 함께 돌아오는 출처 관련 메타데이터
+ */
+
 @Builder
 public record ServerSource(
         Integer index,  // LLM이 답변에 직접 인용한 문서 번호

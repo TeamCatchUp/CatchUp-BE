@@ -4,6 +4,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.team.catchup.rag.dto.server.ServerSource;
 import lombok.Builder;
 
+/**
+ * Spring -> Client 최종 답변 생성시 함께 제공되는 출처 관련 메타데이터
+ */
+
 @Builder
 public record ClientSource(
         Integer index,

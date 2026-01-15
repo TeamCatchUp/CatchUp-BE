@@ -1,10 +1,11 @@
 package com.team.catchup.rag.client;
 
+import com.team.catchup.rag.dto.server.FastApiStreamingResponse;
 import com.team.catchup.rag.dto.server.ServerChatRequest;
-import com.team.catchup.rag.dto.server.ServerChatResponse;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @Component
@@ -15,9 +16,12 @@ public class RagApiClient {
         this.chatClient = chatClient;
     }
 
-    public Mono<ServerChatResponse> requestChat(ServerChatRequest request){
+    /**
+     * 채팅 요청. 답변 생성 과정 (예: '검색 중...', '답변 생성 중...') 스트리밍을 지원한다.
+     */
+    public Flux<FastApiStreamingResponse> requestChatStream(ServerChatRequest request) {
         return chatClient.post()
-                .uri("/api/chat")
+                .uri("/api/chat/stream")
                 .bodyValue(request)
                 .retrieve()
                 .onStatus(
@@ -25,6 +29,6 @@ public class RagApiClient {
                         res -> res.bodyToMono(String.class)
                                 .flatMap(error -> Mono.error(new RuntimeException("Rag Server 오류: " + error)))
                 )
-                .bodyToMono(ServerChatResponse.class);
+                .bodyToFlux(FastApiStreamingResponse.class);
     }
 }
