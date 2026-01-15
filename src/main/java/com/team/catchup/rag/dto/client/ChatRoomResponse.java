@@ -14,7 +14,7 @@ public record ChatRoomResponse(
         return new ChatRoomResponse(
                 chatRoom.getSessionId(),
                 chatRoom.getTitle(),
-                chatRoom.getCreatedAt()
+                chatRoom.getLastActiveTime()
         );
     }
 }

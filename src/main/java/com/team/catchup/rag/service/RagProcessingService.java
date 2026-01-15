@@ -9,11 +9,12 @@ import com.team.catchup.rag.client.RagApiClient;
 import com.team.catchup.rag.dto.client.ClientChatResponse;
 import com.team.catchup.rag.dto.client.ClientChatStreamingFinalResponse;
 import com.team.catchup.rag.dto.client.ClientChatStreamingResponse;
-import com.team.catchup.rag.dto.server.*;
+import com.team.catchup.rag.dto.server.FastApiStreamingResponse;
+import com.team.catchup.rag.dto.server.ServerChatRequest;
+import com.team.catchup.rag.dto.server.ServerChatResponse;
 import com.team.catchup.rag.entity.ChatRoom;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import reactor.core.scheduler.Schedulers;
@@ -30,7 +31,6 @@ public class RagProcessingService {
     private final NotificationService notificationService;
     private final ChatHistoryService chatHistoryService;
     private final ChatRoomService chatRoomService;
-    private final MessageConverter messageConverter;
 
     /**
      * (비동기) RAG 답변 생성 과정 스트리밍

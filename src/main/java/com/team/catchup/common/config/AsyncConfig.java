@@ -32,7 +32,7 @@ public class AsyncConfig {
     }
 
     @Bean(name = "ragExecutor")
-    public Executor regExecutor() {
+    public Executor ragExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
 
         // 기본 스레드 5개

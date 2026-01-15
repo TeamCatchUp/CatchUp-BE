@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Client에세 전달할 LLM이 생성한 최종 답변과 출처 목록
+ * Client에게 전달할 LLM이 생성한 최종 답변과 출처 목록
  */
 
 public record ClientChatResponse(
