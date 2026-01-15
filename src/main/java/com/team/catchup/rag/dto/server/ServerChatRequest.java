@@ -7,6 +7,10 @@ import lombok.Builder;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * Spring -> FastAPI 채팅 요청 dto
+ */
+
 @Builder
 public record ServerChatRequest(
         @NotBlank String query,
