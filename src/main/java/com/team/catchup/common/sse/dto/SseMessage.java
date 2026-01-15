@@ -22,4 +22,15 @@ public record SseMessage<T>(
     ) {
         return new SseMessage<>(target, type, message, null);
     }
+
+    /**
+     * RAG 답변 생성 시 중간 과정 스트리밍을 위해 data를 포함하여 응답할 수 있도록 함.
+     */
+    public static <T> SseMessage<T> withData(
+            SyncTarget target,
+            SseEventType type,
+            T data
+    ) {
+        return new SseMessage<>(target, type, null, data);
+    }
 }
