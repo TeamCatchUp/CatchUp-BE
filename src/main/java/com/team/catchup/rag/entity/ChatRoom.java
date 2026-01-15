@@ -1,13 +1,12 @@
 package com.team.catchup.rag.entity;
 
+import com.team.catchup.common.entity.BaseTimeEntity;
 import com.team.catchup.member.entity.Member;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
@@ -19,7 +18,7 @@ import java.util.UUID;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @EntityListeners(AuditingEntityListener.class) // 시간 자동 저장
-public class ChatRoom {
+public class ChatRoom extends BaseTimeEntity {
     @Id
     @Column(columnDefinition = "uuid")
     private UUID sessionId;
@@ -33,12 +32,7 @@ public class ChatRoom {
     @OneToMany(mappedBy = "chatRoom", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ChatHistory> histories = new ArrayList<>();
 
-    @CreatedDate
-    @Column(updatable = false)
-    private LocalDateTime createdAt;
-
-    @LastModifiedDate
-    private LocalDateTime updatedAt;
+    private LocalDateTime lastActiveTime;
 
     @Builder
     public ChatRoom(UUID sessionId, String title, Member member) {
@@ -52,6 +46,6 @@ public class ChatRoom {
     }
 
     public void updateLastActiveTime() {
-        this.updatedAt = LocalDateTime.now();
+        this.lastActiveTime = LocalDateTime.now();
     }
 }

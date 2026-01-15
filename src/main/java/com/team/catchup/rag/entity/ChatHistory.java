@@ -1,7 +1,7 @@
 package com.team.catchup.rag.entity;
 
 import com.team.catchup.member.entity.Member;
-import com.team.catchup.rag.dto.server.ChatMetadata;
+import com.team.catchup.rag.entity.vo.ChatMetadata;
 import com.team.catchup.rag.dto.server.ServerChatResponse;
 import jakarta.persistence.*;
 import lombok.AccessLevel;

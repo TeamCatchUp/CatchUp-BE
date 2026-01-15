@@ -1,5 +1,6 @@
-package com.team.catchup.rag.dto.server;
+package com.team.catchup.rag.entity.vo;
 
+import com.team.catchup.rag.dto.server.ServerSource;
 import lombok.Builder;
 
 import java.util.List;
