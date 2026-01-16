@@ -170,4 +170,28 @@ public class GithubPersistenceService {
             return savedCount;
         }).subscribeOn(Schedulers.boundedElastic());
     }
+
+    // ==================== Mark as Indexed ====================
+
+    @Transactional
+    public Mono<Void> markPullRequestAsIndexed(Long pullRequestId) {
+        return Mono.fromRunnable(() -> {
+            pullRequestRepository.findById(pullRequestId).ifPresent(pr -> {
+                pr.markAsIndexed();
+                pullRequestRepository.save(pr);
+            });
+            log.debug("[GITHUB][PERSISTENCE] Marked PR #{} as indexed", pullRequestId);
+        }).subscribeOn(Schedulers.boundedElastic()).then();
+    }
+
+    @Transactional
+    public Mono<Void> markIssueAsIndexed(Long issueId) {
+        return Mono.fromRunnable(() -> {
+            issueRepository.findById(issueId).ifPresent(issue -> {
+                issue.markAsIndexed();
+                issueRepository.save(issue);
+            });
+            log.debug("[GITHUB][PERSISTENCE] Marked Issue #{} as indexed", issueId);
+        }).subscribeOn(Schedulers.boundedElastic()).then();
+    }
 }

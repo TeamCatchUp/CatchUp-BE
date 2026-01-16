@@ -299,6 +299,14 @@ public class GithubSyncService {
                 .flatMapMany(Flux::fromIterable)
                 .flatMap(pr ->
                         githubProcessor.processPullRequestComments(owner, repo, pr.getNumber())
+                                .flatMap(count -> {
+                                    // 처리 성공 시 indexedAt 업데이트
+                                    if (count.saved() > 0 || count.totalFetched() == 0) {
+                                        return persistenceService.markPullRequestAsIndexed(pr.getPullRequestId())
+                                                .thenReturn(count);
+                                    }
+                                    return Mono.just(count);
+                                })
                                 .onErrorResume(e -> {
                                     log.error("[GITHUB][SYNC] Failed to sync comments for PR #{}", pr.getNumber(), e);
                                     return Mono.just(SyncCount.empty());
@@ -313,6 +321,14 @@ public class GithubSyncService {
                 .flatMapMany(Flux::fromIterable)
                 .flatMap(issue ->
                         githubProcessor.processIssueComments(owner, repo, issue.getNumber())
+                                .flatMap(count -> {
+                                    // 처리 성공 시 indexedAt 업데이트
+                                    if (count.saved() > 0 || count.totalFetched() == 0) {
+                                        return persistenceService.markIssueAsIndexed(issue.getIssueId())
+                                                .thenReturn(count);
+                                    }
+                                    return Mono.just(count);
+                                })
                                 .onErrorResume(e -> {
                                     log.error("[GITHUB][SYNC] Failed to sync comments for issue #{}", issue.getNumber(), e);
                                     return Mono.just(SyncCount.empty());
@@ -335,6 +351,14 @@ public class GithubSyncService {
                 .flatMapMany(Flux::fromIterable)
                 .flatMap(pr ->
                         githubProcessor.processPullRequestReviews(owner, repo, pr.getNumber())
+                                .flatMap(count -> {
+                                    // 처리 성공 시 indexedAt 업데이트
+                                    if (count.saved() > 0 || count.totalFetched() == 0) {
+                                        return persistenceService.markPullRequestAsIndexed(pr.getPullRequestId())
+                                                .thenReturn(count);
+                                    }
+                                    return Mono.just(count);
+                                })
                                 .onErrorResume(e -> {
                                     log.error("[GITHUB][SYNC] Failed to sync reviews for PR #{}", pr.getNumber(), e);
                                     return Mono.just(SyncCount.empty());
@@ -351,6 +375,14 @@ public class GithubSyncService {
                 .flatMapMany(Flux::fromIterable)
                 .flatMap(pr ->
                         githubProcessor.processPullRequestFileChanges(owner, repo, pr.getNumber())
+                                .flatMap(count -> {
+                                    // 처리 성공 시 indexedAt 업데이트
+                                    if (count.saved() > 0 || count.totalFetched() == 0) {
+                                        return persistenceService.markPullRequestAsIndexed(pr.getPullRequestId())
+                                                .thenReturn(count);
+                                    }
+                                    return Mono.just(count);
+                                })
                                 .onErrorResume(e -> {
                                     log.error("[GITHUB][SYNC] Failed to sync file changes for PR #{}", pr.getNumber(), e);
                                     return Mono.just(SyncCount.empty());
