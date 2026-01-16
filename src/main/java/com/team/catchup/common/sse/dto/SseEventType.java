@@ -8,5 +8,6 @@ public enum SseEventType {
 
     // RAG 답변 생성 시 중간 과정 스트리밍 관련
     RAG_IN_PROGRESS,
+    RAG_INTERRUPT,
     RAG_DONE
 }

@@ -50,6 +50,10 @@ public class RagProcessingService {
                         if ("result".equals(fastApiDto.getType())) {
                             handleFinalAnswer(member, chatRoom, fastApiDto);
                         }
+
+                        else if ("interrupt".equals(fastApiDto.getType())) {
+                            handleInterrupt(memberId, fastApiDto);
+                        }
                         
                         // 중간 과정
                         else {
@@ -86,6 +90,22 @@ public class RagProcessingService {
         );
 
         // Client에게 전송
+        notificationService.sendToClient(memberId, sseMessage);
+    }
+
+    /**
+     * (Human-In-The-Loop) 답변 스트리밍 과정에서 사용자가 개입할 수 있도록
+     * Interrupt 이벤트 전송
+     */
+    private void handleInterrupt(Long memberId, FastApiStreamingResponse dto) {
+        ClientChatStreamingResponse interruptResponse = ClientChatStreamingResponse.createInterruptResponse(dto);
+
+        SseMessage<ClientChatStreamingResponse> sseMessage = SseMessage.withData(
+                SyncTarget.CHAT,
+                SseEventType.RAG_INTERRUPT,
+                interruptResponse
+        );
+
         notificationService.sendToClient(memberId, sseMessage);
     }
 
