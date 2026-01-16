@@ -5,14 +5,20 @@ import com.team.catchup.github.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class GithubPersistenceService {
+
+    private final TransactionTemplate transactionTemplate;
 
     private final GithubRepositoryRepository repositoryRepository;
     private final GithubCommitRepository commitRepository;
@@ -24,214 +30,256 @@ public class GithubPersistenceService {
 
     // ==================== Repository ====================
 
-    @Transactional
-    public GithubRepository saveRepository(GithubRepository repository) {
+    public Mono<GithubRepository> saveRepository(GithubRepository repository) {
+        // 로깅은 트랜잭션 밖(호출 시점)에 남겨두거나 안으로 옮길 수 있으나,
+        // 원본 로직 순서를 존중하여 로깅 후 비동기 작업 시작
         log.info("[GITHUB][PERSISTENCE] Saving repository: {}/{}",
-            repository.getOwner(), repository.getName());
-        return repositoryRepository.save(repository);
+                repository.getOwner(), repository.getName());
+
+        return Mono.fromCallable(() ->
+                transactionTemplate.execute(status ->
+                        repositoryRepository.save(repository)
+                )
+        ).subscribeOn(Schedulers.boundedElastic());
     }
 
-    @Transactional(readOnly = true)
-    public GithubRepository findRepository(String owner, String name) {
-        return repositoryRepository.findByOwnerAndName(owner, name)
-                .orElse(null);
-    }
-
-    @Transactional(readOnly = true)
-    public GithubRepository findRepositoryByOwnerAndName(String owner, String name) {
-        return repositoryRepository.findByOwnerAndName(owner, name)
-                .orElse(null);
-    }
-
-    @Transactional(readOnly = true)
-    public boolean repositoryExists(String owner, String name) {
-        return repositoryRepository.existsByOwnerAndName(owner, name);
+    public Mono<GithubRepository> findRepository(String owner, String name) {
+        return Mono.fromCallable(() ->
+                transactionTemplate.execute(status ->
+                        repositoryRepository.findByOwnerAndName(owner, name).orElse(null)
+                )
+        ).subscribeOn(Schedulers.boundedElastic());
     }
 
     // ==================== Commits ====================
 
-    @Transactional
-    public int saveAllCommits(List<GithubCommit> commits) {
-        int savedCount = 0;
-        for (GithubCommit commit : commits) {
-            if (saveCommitIfNotExists(commit)) {
-                savedCount++;
-            }
-        }
-        log.info("[GITHUB][PERSISTENCE] Saved {}/{} commits", savedCount, commits.size());
-        return savedCount;
-    }
+    public Mono<Integer> saveAllCommits(List<GithubCommit> commits) {
+        return Mono.fromCallable(() ->
+                transactionTemplate.execute(status -> {
+                    if (commits.isEmpty()) return 0;
 
-    @Transactional
-    public boolean saveCommitIfNotExists(GithubCommit commit) {
-        if (commitRepository.existsBySha(commit.getSha())) {
-            return false;
-        }
-        commitRepository.save(commit);
-        return true;
-    }
+                    List<String> shas = commits.stream()
+                            .map(GithubCommit::getSha)
+                            .distinct()
+                            .toList();
 
-    @Transactional(readOnly = true)
-    public List<GithubCommit> findUnindexedCommits(Long repositoryId) {
-        if (repositoryId != null) {
-            return commitRepository.findByRepository_RepositoryIdAndIndexedAtIsNull(repositoryId);
-        }
-        return commitRepository.findByIndexedAtIsNull();
+                    Set<String> existingShas = commitRepository.findAllByShaIn(shas).stream()
+                            .map(GithubCommit::getSha)
+                            .collect(Collectors.toSet());
+
+                    List<GithubCommit> newCommits = commits.stream()
+                            .filter(c -> !existingShas.contains(c.getSha()))
+                            .collect(Collectors.toMap(GithubCommit::getSha, c -> c, (p1, p2) -> p1))
+                            .values().stream().toList();
+
+                    if(!newCommits.isEmpty()) {
+                        commitRepository.saveAll(newCommits);
+                    }
+
+                    log.info("[GITHUB][PERSISTENCE] Saved {}/{} commits", newCommits.size(), commits.size());
+                    return newCommits.size();
+                })
+        ).subscribeOn(Schedulers.boundedElastic());
     }
 
     // ==================== Pull Requests ====================
 
-    @Transactional
-    public int saveAllPullRequests(List<GithubPullRequest> pullRequests) {
-        int savedCount = 0;
-        for (GithubPullRequest pr : pullRequests) {
-            if (savePullRequestIfNotExists(pr)) {
-                savedCount++;
-            }
-        }
-        log.info("[GITHUB][PERSISTENCE] Saved {}/{} pull requests", savedCount, pullRequests.size());
-        return savedCount;
+    public Mono<Integer> saveAllPullRequests(List<GithubPullRequest> pullRequests) {
+        return Mono.fromCallable(() ->
+                transactionTemplate.execute(status -> {
+                    if (pullRequests.isEmpty()) return 0;
+
+                    List<Long> prIds = pullRequests.stream()
+                            .map(GithubPullRequest::getPullRequestId)
+                            .distinct()
+                            .collect(Collectors.toList());
+
+                    Set<Long> existingIds = pullRequestRepository.findAllByPullRequestIdIn(prIds).stream()
+                            .map(GithubPullRequest::getPullRequestId)
+                            .collect(Collectors.toSet());
+
+                    List<GithubPullRequest> newPullRequests = pullRequests.stream()
+                            .filter(pr -> !existingIds.contains(pr.getPullRequestId()))
+                            .collect(Collectors.toMap(GithubPullRequest::getPullRequestId, pr -> pr, (p1, p2) -> p1))
+                            .values().stream().toList();
+
+                    if (!newPullRequests.isEmpty()) {
+                        pullRequestRepository.saveAll(newPullRequests);
+                    }
+
+                    log.info("[GITHUB][PERSISTENCE] Saved {}/{} pull requests", newPullRequests.size(), pullRequests.size());
+                    return newPullRequests.size();
+                })
+        ).subscribeOn(Schedulers.boundedElastic());
     }
 
-    @Transactional
-    public boolean savePullRequestIfNotExists(GithubPullRequest pullRequest) {
-        if (pullRequestRepository.existsByPullRequestId(pullRequest.getPullRequestId())) {
-            return false;
-        }
-        pullRequestRepository.save(pullRequest);
-        return true;
+    public Mono<List<GithubPullRequest>> findUnindexedPullRequests(Long repositoryId) {
+        return Mono.fromCallable(() ->
+                transactionTemplate.execute(status -> {
+                    if (repositoryId != null) {
+                        return pullRequestRepository.findByRepository_RepositoryIdAndIndexedAtIsNull(repositoryId);
+                    }
+                    return pullRequestRepository.findByIndexedAtIsNull();
+                })
+        ).subscribeOn(Schedulers.boundedElastic());
     }
 
-    @Transactional(readOnly = true)
-    public List<GithubPullRequest> findUnindexedPullRequests(Long repositoryId) {
-        if (repositoryId != null) {
-            return pullRequestRepository.findByRepository_RepositoryIdAndIndexedAtIsNull(repositoryId);
-        }
-        return pullRequestRepository.findByIndexedAtIsNull();
-    }
-
-    @Transactional(readOnly = true)
-    public GithubPullRequest findPullRequestByNumber(Long repositoryId, Integer number) {
-        return pullRequestRepository.findByRepository_RepositoryIdAndNumber(repositoryId, number)
-                .orElse(null);
+    public Mono<GithubPullRequest> findPullRequestByNumber(Long repositoryId, Integer number) {
+        return Mono.fromCallable(() ->
+                transactionTemplate.execute(status ->
+                        pullRequestRepository.findByRepository_RepositoryIdAndNumber(repositoryId, number).orElse(null)
+                )
+        ).subscribeOn(Schedulers.boundedElastic());
     }
 
     // ==================== Issues ====================
 
-    @Transactional
-    public int saveAllIssues(List<GithubIssue> issues) {
-        int savedCount = 0;
-        for (GithubIssue issue : issues) {
-            if (saveIssueIfNotExists(issue)) {
-                savedCount++;
-            }
-        }
-        log.info("[GITHUB][PERSISTENCE] Saved {}/{} issues", savedCount, issues.size());
-        return savedCount;
+    public Mono<Integer> saveAllIssues(List<GithubIssue> issues) {
+        return Mono.fromCallable(() ->
+                transactionTemplate.execute(status -> {
+                    if (issues.isEmpty()) return 0;
+
+                    List<Long> issueIds = issues.stream()
+                            .map(GithubIssue::getIssueId)
+                            .distinct()
+                            .collect(Collectors.toList());
+
+                    Set<Long> existingIds = issueRepository.findAllByIssueIdIn(issueIds).stream()
+                            .map(GithubIssue::getIssueId)
+                            .collect(Collectors.toSet());
+
+                    List<GithubIssue> newIssues = issues.stream()
+                            .filter(issue -> !existingIds.contains(issue.getIssueId()))
+                            .collect(Collectors.toMap(GithubIssue::getIssueId, i -> i, (i1, i2) -> i1))
+                            .values().stream().toList();
+
+                    if (!newIssues.isEmpty()) {
+                        issueRepository.saveAll(newIssues);
+                    }
+
+                    log.info("[GITHUB][PERSISTENCE] Saved {}/{} issues", newIssues.size(), issues.size());
+                    return newIssues.size();
+                })
+        ).subscribeOn(Schedulers.boundedElastic());
     }
 
-    @Transactional
-    public boolean saveIssueIfNotExists(GithubIssue issue) {
-        if (issueRepository.existsByIssueId(issue.getIssueId())) {
-            return false;
-        }
-        issueRepository.save(issue);
-        return true;
+    public Mono<List<GithubIssue>> findUnindexedIssues(Long repositoryId) {
+        return Mono.fromCallable(() ->
+                transactionTemplate.execute(status -> {
+                    if (repositoryId != null) {
+                        return issueRepository.findByRepository_RepositoryIdAndIndexedAtIsNull(repositoryId);
+                    }
+                    return issueRepository.findByIndexedAtIsNull();
+                })
+        ).subscribeOn(Schedulers.boundedElastic());
     }
 
-    @Transactional(readOnly = true)
-    public List<GithubIssue> findUnindexedIssues(Long repositoryId) {
-        if (repositoryId != null) {
-            return issueRepository.findByRepository_RepositoryIdAndIndexedAtIsNull(repositoryId);
-        }
-        return issueRepository.findByIndexedAtIsNull();
-    }
-
-    @Transactional(readOnly = true)
-    public GithubIssue findIssueByNumber(Long repositoryId, Integer number) {
-        return issueRepository.findByRepository_RepositoryIdAndNumber(repositoryId, number)
-                .orElse(null);
+    public Mono<GithubIssue> findIssueByNumber(Long repositoryId, Integer number) {
+        return Mono.fromCallable(() ->
+                transactionTemplate.execute(status ->
+                        issueRepository.findByRepository_RepositoryIdAndNumber(repositoryId, number).orElse(null)
+                )
+        ).subscribeOn(Schedulers.boundedElastic());
     }
 
     // ==================== Comments ====================
 
-    @Transactional
-    public int saveAllComments(List<GithubComment> comments) {
-        int savedCount = 0;
-        for (GithubComment comment : comments) {
-            if (saveCommentIfNotExists(comment)) {
-                savedCount++;
-            }
-        }
-        log.info("[GITHUB][PERSISTENCE] Saved {}/{} comments", savedCount, comments.size());
-        return savedCount;
-    }
+    public Mono<Integer> saveAllComments(List<GithubComment> comments) {
+        return Mono.fromCallable(() ->
+                transactionTemplate.execute(status -> {
+                    if (comments.isEmpty()) return 0;
 
-    @Transactional
-    public boolean saveCommentIfNotExists(GithubComment comment) {
-        if (commentRepository.existsByCommentId(comment.getCommentId())) {
-            return false;
-        }
-        commentRepository.save(comment);
-        return true;
-    }
+                    List<Long> commentIds = comments.stream()
+                            .map(GithubComment::getCommentId)
+                            .distinct()
+                            .collect(Collectors.toList());
 
-    @Transactional(readOnly = true)
-    public List<GithubComment> findUnindexedComments(Long repositoryId) {
-        if (repositoryId != null) {
-            return commentRepository.findByRepository_RepositoryIdAndIndexedAtIsNull(repositoryId);
-        }
-        return commentRepository.findByIndexedAtIsNull();
+                    Set<Long> existingIds = commentRepository.findAllByCommentIdIn(commentIds).stream()
+                            .map(GithubComment::getCommentId)
+                            .collect(Collectors.toSet());
+
+                    List<GithubComment> newComments = comments.stream()
+                            .filter(comment -> !existingIds.contains(comment.getCommentId()))
+                            .collect(Collectors.toMap(GithubComment::getCommentId, c -> c, (c1, c2) -> c1))
+                            .values().stream().toList();
+
+                    if (!newComments.isEmpty()) {
+                        commentRepository.saveAll(newComments);
+                    }
+
+                    log.info("[GITHUB][PERSISTENCE] Saved {}/{} comments", newComments.size(), comments.size());
+                    return newComments.size();
+                })
+        ).subscribeOn(Schedulers.boundedElastic());
     }
 
     // ==================== Reviews ====================
 
-    @Transactional
-    public int saveAllReviews(List<GithubReview> reviews) {
-        int savedCount = 0;
-        for (GithubReview review : reviews) {
-            if (saveReviewIfNotExists(review)) {
-                savedCount++;
-            }
-        }
-        log.info("[GITHUB][PERSISTENCE] Saved {}/{} reviews", savedCount, reviews.size());
-        return savedCount;
-    }
+    public Mono<Integer> saveAllReviews(List<GithubReview> reviews) {
+        return Mono.fromCallable(() ->
+                transactionTemplate.execute(status -> {
+                    if (reviews.isEmpty()) return 0;
 
-    @Transactional
-    public boolean saveReviewIfNotExists(GithubReview review) {
-        if (reviewRepository.existsByReviewId(review.getReviewId())) {
-            return false;
-        }
-        reviewRepository.save(review);
-        return true;
-    }
+                    List<Long> reviewIds = reviews.stream()
+                            .map(GithubReview::getReviewId)
+                            .distinct()
+                            .collect(Collectors.toList());
 
-    @Transactional(readOnly = true)
-    public List<GithubReview> findUnindexedReviews(Long repositoryId) {
-        if (repositoryId != null) {
-            return reviewRepository.findByRepository_RepositoryIdAndIndexedAtIsNull(repositoryId);
-        }
-        return reviewRepository.findByIndexedAtIsNull();
+                    Set<Long> existingIds = reviewRepository.findAllByReviewIdIn(reviewIds).stream()
+                            .map(GithubReview::getReviewId)
+                            .collect(Collectors.toSet());
+
+                    List<GithubReview> newReviews = reviews.stream()
+                            .filter(review -> !existingIds.contains(review.getReviewId()))
+                            .collect(Collectors.toMap(GithubReview::getReviewId, r -> r, (r1, r2) -> r1))
+                            .values().stream().toList();
+
+                    if (!newReviews.isEmpty()) {
+                        reviewRepository.saveAll(newReviews);
+                    }
+
+                    log.info("[GITHUB][PERSISTENCE] Saved {}/{} reviews", newReviews.size(), reviews.size());
+                    return newReviews.size();
+                })
+        ).subscribeOn(Schedulers.boundedElastic());
     }
 
     // ==================== File Changes ====================
 
-    @Transactional
-    public int saveAllFileChanges(List<GithubFileChange> fileChanges) {
-        int savedCount = fileChanges.size();
-        fileChangeRepository.saveAll(fileChanges);
-        log.info("[GITHUB][PERSISTENCE] Saved {} file changes", savedCount);
-        return savedCount;
+    public Mono<Integer> saveAllFileChanges(List<GithubFileChange> fileChanges) {
+        return Mono.fromCallable(() ->
+                transactionTemplate.execute(status -> {
+                    fileChangeRepository.saveAll(fileChanges);
+                    int savedCount = fileChanges.size();
+                    log.info("[GITHUB][PERSISTENCE] Saved {} file changes", savedCount);
+                    return savedCount;
+                })
+        ).subscribeOn(Schedulers.boundedElastic());
     }
 
-    @Transactional(readOnly = true)
-    public List<GithubFileChange> findFileChangesByCommit(String commitSha) {
-        return fileChangeRepository.findByCommitSha(commitSha);
+    // ==================== Mark as Indexed ====================
+
+    public Mono<Void> markPullRequestAsIndexed(Long pullRequestId) {
+        return Mono.fromRunnable(() ->
+                transactionTemplate.executeWithoutResult(status -> {
+                    pullRequestRepository.findById(pullRequestId).ifPresent(pr -> {
+                        pr.markAsIndexed();
+                        pullRequestRepository.save(pr);
+                    });
+                    log.debug("[GITHUB][PERSISTENCE] Marked PR #{} as indexed", pullRequestId);
+                })
+        ).subscribeOn(Schedulers.boundedElastic()).then();
     }
 
-    @Transactional(readOnly = true)
-    public List<GithubFileChange> findFileChangesByPullRequest(Long pullRequestId) {
-        return fileChangeRepository.findByPullRequest_PullRequestId(pullRequestId);
+    public Mono<Void> markIssueAsIndexed(Long issueId) {
+        return Mono.fromRunnable(() ->
+                transactionTemplate.executeWithoutResult(status -> {
+                    issueRepository.findById(issueId).ifPresent(issue -> {
+                        issue.markAsIndexed();
+                        issueRepository.save(issue);
+                    });
+                    log.debug("[GITHUB][PERSISTENCE] Marked Issue #{} as indexed", issueId);
+                })
+        ).subscribeOn(Schedulers.boundedElastic()).then();
     }
 }

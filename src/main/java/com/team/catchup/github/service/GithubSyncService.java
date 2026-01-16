@@ -10,8 +10,10 @@ import com.team.catchup.github.entity.GithubRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 @Service
 @RequiredArgsConstructor
@@ -25,7 +27,6 @@ public class GithubSyncService {
     /**
      * Full Repository Sync
      */
-    @Async
     public void fullSync(Long userId, String owner, String repo, String branch) {
         fullSyncFrom(userId, owner, repo, branch, GithubSyncStep.REPOSITORY_INFO);
     }
@@ -33,379 +34,364 @@ public class GithubSyncService {
     /**
      * 특정 단계부터 Full Sync 재시도
      */
-    @Async
     public void fullSyncFrom(Long userId, String owner, String repo, String branch, GithubSyncStep startFrom) {
-        log.info("[GITHUB][FULL SYNC] Background Process Started | owner: {}, repo: {}, branch: {}, startFrom: {}",
+        log.info("[GITHUB][FULL SYNC] Starting background sync | owner: {}, repo: {}, branch: {}, startFrom: {}",
                 owner, repo, branch, startFrom);
+
+        fullSyncInternal(userId, owner, repo, branch, startFrom)
+                .subscribeOn(Schedulers.boundedElastic())
+                .subscribe(
+                        result -> log.debug("[GITHUB][FULL SYNC] Completed successfully"),
+                        error -> log.error("[GITHUB][FULL SYNC] Failed with error", error)
+                );
+    }
+
+    /**
+     * Full Sync 내부 구현
+     */
+    private Mono<Void> fullSyncInternal(Long userId, String owner, String repo, String branch, GithubSyncStep startFrom) {
         String repositoryName = owner + "/" + repo;
         long startTime = System.currentTimeMillis();
 
-        try {
+        return Mono.defer(() -> {
             publishSimpleMessage(userId, SseEventType.IN_PROGRESS,
                     "Starting Github Full Sync for " + repositoryName + " on branch: " + branch);
 
-            GithubRepository repository = null;
-
             // Step 1: Repository 메타데이터 동기화
-            if (shouldExecute(startFrom, GithubSyncStep.REPOSITORY_INFO)) {
-                repository = syncRepositoryInfo(userId, owner, repo, branch, repositoryName);
-            }
+            Mono<GithubRepository> repositoryMono = shouldExecute(startFrom, GithubSyncStep.REPOSITORY_INFO)
+                    ? syncRepositoryInfo(userId, owner, repo, branch, repositoryName)
+                    : persistenceService.findRepository(owner, repo)
+                    .switchIfEmpty(Mono.error(
+                            new IllegalStateException("Repository not found: " + repositoryName)
+                    ));
 
-            // Repository 정보가 없으면 조회
-            if (repository == null) {
-                repository = persistenceService.findRepository(owner, repo);
-                if (repository == null) {
-                    throw new IllegalStateException("Repository not found: " + repositoryName);
-                }
-            }
+            return repositoryMono
+                    .flatMap(repository -> {
+                        // syncedBranch 업데이트
+                        repository.updateSyncInfo(branch, GithubRepository.SyncStatus.IN_PROGRESS);
+                        return persistenceService.saveRepository(repository);
+                    })
+                    .flatMap(repository ->
+                            // Step 2-7: 모든 동기화 단계 순차 실행
+                            syncAllSteps(userId, owner, repo, branch, repositoryName, repository, startFrom)
+                                    .thenReturn(repository)
+                    )
+                    .flatMap(repository -> {
+                        // 동기화 완료 처리
+                        repository.updateSyncInfo(branch, GithubRepository.SyncStatus.COMPLETED);
+                        return persistenceService.saveRepository(repository);
+                    })
+                    .doOnSuccess(repository -> {
+                        long duration = System.currentTimeMillis() - startTime;
+                        String completeMsg = String.format("Github Full Sync Completed for %s@%s | Time Used: %ds",
+                                repositoryName, branch, duration / 1000);
 
-            // syncedBranch 업데이트
-            repository.updateSyncInfo(branch, GithubRepository.SyncStatus.IN_PROGRESS);
-            persistenceService.saveRepository(repository);
-
-            // Step 2: Commits 동기화
-            if (shouldExecute(startFrom, GithubSyncStep.COMMITS)) {
-                syncCommitsStep(userId, owner, repo, branch, repositoryName, repository);
-            }
-
-            // Step 3: Pull Requests 동기화
-            if (shouldExecute(startFrom, GithubSyncStep.PULL_REQUESTS)) {
-                syncPullRequestsStep(userId, owner, repo, branch, repositoryName, repository);
-            }
-
-            // Step 4: Issues 동기화
-            if (shouldExecute(startFrom, GithubSyncStep.ISSUES)) {
-                syncIssuesStep(userId, owner, repo, repositoryName, repository);
-            }
-
-            // Step 5: Comments 동기화
-            if (shouldExecute(startFrom, GithubSyncStep.COMMENTS)) {
-                syncCommentsStep(userId, owner, repo, repositoryName, repository);
-            }
-
-            // Step 6: Reviews 동기화
-            if (shouldExecute(startFrom, GithubSyncStep.REVIEWS)) {
-                syncReviewsStep(userId, owner, repo, repositoryName, repository);
-            }
-
-            // Step 7: File Changes 동기화 (PR만)
-            if (shouldExecute(startFrom, GithubSyncStep.FILE_CHANGES)) {
-                syncFileChangesStep(userId, owner, repo, repositoryName, repository);
-            }
-
-            // Update repository sync status
-            repository.updateSyncInfo(branch, GithubRepository.SyncStatus.COMPLETED);
-            persistenceService.saveRepository(repository);
-
-            long duration = System.currentTimeMillis() - startTime;
-            String completeMsg = String.format("Github Full Sync Completed for %s@%s | Time Used: %ds",
-                    repositoryName, branch, duration / 1000);
-
-            GithubSyncProgress progress = GithubSyncProgress.of(
-                    GithubSyncStep.COMPLETED,
-                    SyncCount.empty(),
-                    repositoryName,
-                    completeMsg
-            );
-            publishProgressMessage(userId, SseEventType.COMPLETED, completeMsg, progress);
-            log.info("[GITHUB][FULL SYNC] All Steps Completed - Time Used: {}ms", duration);
-
-        } catch (Exception e) {
-            log.error("[GITHUB][FULL SYNC] FAILED for {}/{}@{}", owner, repo, branch, e);
-            publishSimpleMessage(userId, SseEventType.FAILED,
-                    "Github Full Sync Failed for " + repositoryName + "@" + branch + ": " + e.getMessage());
-        }
+                        GithubSyncProgress progress = GithubSyncProgress.of(
+                                GithubSyncStep.COMPLETED,
+                                SyncCount.empty(),
+                                repositoryName,
+                                completeMsg
+                        );
+                        publishProgressMessage(userId, SseEventType.COMPLETED, completeMsg, progress);
+                        log.info("[GITHUB][FULL SYNC] All Steps Completed - Time Used: {}ms", duration);
+                    })
+                    .doOnError(e -> {
+                        log.error("[GITHUB][FULL SYNC] FAILED for {}/{}@{}", owner, repo, branch, e);
+                        publishSimpleMessage(userId, SseEventType.FAILED,
+                                "Github Full Sync Failed for " + repositoryName + "@" + branch + ": " + e.getMessage());
+                    })
+                    .then();
+        });
     }
 
     /**
-     * Repository 메타데이터만 동기화
+     * 모든 동기화 단계 순차 실행
      */
-    @Async
-    public void syncRepositoryMetadata(String userId, String owner, String repo, String branch) {
-        log.info("[GITHUB][SYNC] Syncing repository metadata for {}/{} on branch: {}", owner, repo, branch);
-
-        try {
-            githubProcessor.processRepository(owner, repo, branch);
-            log.info("[GITHUB][SYNC] Repository metadata synced for {}/{}", owner, repo);
-        } catch (Exception e) {
-            log.error("[GITHUB][SYNC] Failed to sync repository metadata for {}/{}", owner, repo, e);
-        }
-    }
-
-    /**
-     * Commits만 동기화
-     */
-    @Async
-    public void syncCommits(String owner, String repo, String branch, String since) {
-        log.info("[GITHUB][SYNC] Syncing commits for {}/{} on branch: {}", owner, repo, branch);
-
-        try {
-            GithubRepository repository = persistenceService.findRepository(owner, repo);
-            if (repository == null) {
-                log.error("[GITHUB][SYNC] Repository not found: {}/{}", owner, repo);
-                return;
-            }
-
-            SyncCount count = githubProcessor.processCommits(repository, owner, repo, branch, since);
-            log.info("[GITHUB][SYNC] Commits synced: {}/{} for {}/{}@{}",
-                    count.saved(), count.totalFetched(), owner, repo, branch);
-        } catch (Exception e) {
-            log.error("[GITHUB][SYNC] Failed to sync commits for {}/{}", owner, repo, e);
-        }
-    }
-
-    /**
-     * Pull Requests만 동기화
-     */
-    @Async
-    public void syncPullRequests(String owner, String repo, String branch, String state, String since) {
-        log.info("[GITHUB][SYNC] Syncing pull requests for {}/{} with base: {}", owner, repo, branch);
-
-        try {
-            GithubRepository repository = persistenceService.findRepository(owner, repo);
-            if (repository == null) {
-                log.error("[GITHUB][SYNC] Repository not found: {}/{}", owner, repo);
-                return;
-            }
-
-            SyncCount count = githubProcessor.processPullRequests(repository, owner, repo, branch, state, since);
-            log.info("[GITHUB][SYNC] Pull requests synced: {}/{} for {}/{}@{}",
-                    count.saved(), count.totalFetched(), owner, repo, branch);
-        } catch (Exception e) {
-            log.error("[GITHUB][SYNC] Failed to sync pull requests for {}/{}", owner, repo, e);
-        }
-    }
-
-    /**
-     * Issues만 동기화
-     */
-    @Async
-    public void syncIssues(String owner, String repo, String state, String since) {
-        log.info("[GITHUB][SYNC] Syncing issues for {}/{}", owner, repo);
-
-        try {
-            GithubRepository repository = persistenceService.findRepository(owner, repo);
-            if (repository == null) {
-                log.error("[GITHUB][SYNC] Repository not found: {}/{}", owner, repo);
-                return;
-            }
-
-            SyncCount count = githubProcessor.processIssues(repository, owner, repo, state, since);
-            log.info("[GITHUB][SYNC] Issues synced: {}/{} for {}/{}",
-                    count.saved(), count.totalFetched(), owner, repo);
-        } catch (Exception e) {
-            log.error("[GITHUB][SYNC] Failed to sync issues for {}/{}", owner, repo, e);
-        }
+    private Mono<Void> syncAllSteps(Long userId, String owner, String repo, String branch,
+                                    String repositoryName, GithubRepository repository, GithubSyncStep startFrom) {
+        return Mono.empty()
+                // Step 2: Commits
+                .then(shouldExecute(startFrom, GithubSyncStep.COMMITS)
+                        ? syncCommitsStep(userId, owner, repo, branch, repositoryName, repository)
+                        : Mono.empty())
+                // Step 3: Pull Requests
+                .then(shouldExecute(startFrom, GithubSyncStep.PULL_REQUESTS)
+                        ? syncPullRequestsStep(userId, owner, repo, branch, repositoryName, repository)
+                        : Mono.empty())
+                // Step 4: Issues
+                .then(shouldExecute(startFrom, GithubSyncStep.ISSUES)
+                        ? syncIssuesStep(userId, owner, repo, repositoryName, repository)
+                        : Mono.empty())
+                // Step 5: Comments
+                .then(shouldExecute(startFrom, GithubSyncStep.COMMENTS)
+                        ? syncCommentsStep(userId, owner, repo, repositoryName, repository)
+                        : Mono.empty())
+                // Step 6: Reviews
+                .then(shouldExecute(startFrom, GithubSyncStep.REVIEWS)
+                        ? syncReviewsStep(userId, owner, repo, repositoryName, repository)
+                        : Mono.empty())
+                // Step 7: File Changes
+                .then(shouldExecute(startFrom, GithubSyncStep.FILE_CHANGES)
+                        ? syncFileChangesStep(userId, owner, repo, repositoryName, repository)
+                        : Mono.empty());
     }
 
     // ==================== Private Step Methods ====================
 
-    private GithubRepository syncRepositoryInfo(Long userId, String owner, String repo, String branch, String repositoryName) {
+    private Mono<GithubRepository> syncRepositoryInfo(Long userId, String owner, String repo, String branch, String repositoryName) {
         log.info("[GITHUB][SYNC] Step 1: Syncing repository metadata");
         publishSimpleMessage(userId, SseEventType.IN_PROGRESS,
                 "Syncing repository metadata for " + repositoryName);
 
-        GithubRepository repository = githubProcessor.processRepository(owner, repo, branch);
-        if (repository == null) {
-            throw new IllegalStateException("Failed to sync repository metadata for " + repositoryName);
-        }
-
-        GithubSyncProgress progress = GithubSyncProgress.of(
-                GithubSyncStep.REPOSITORY_INFO,
-                SyncCount.of(1, 1),
-                repositoryName,
-                "Repository metadata synced for branch: " + branch
-        );
-        publishProgressMessage(userId, SseEventType.IN_PROGRESS,
-                "Repository metadata synced", progress);
-        log.info("[GITHUB][SYNC] Repository metadata completed for branch: {}", branch);
-
-        return repository;
+        return githubProcessor.processRepository(owner, repo, branch)
+                .switchIfEmpty(Mono.error(
+                        new IllegalStateException("Failed to sync repository metadata for " + repositoryName)
+                ))
+                .doOnSuccess(repository -> {
+                    GithubSyncProgress progress = GithubSyncProgress.of(
+                            GithubSyncStep.REPOSITORY_INFO,
+                            SyncCount.of(1, 1),
+                            repositoryName,
+                            "Repository metadata synced for branch: " + branch
+                    );
+                    publishProgressMessage(userId, SseEventType.IN_PROGRESS,
+                            "Repository metadata synced", progress);
+                    log.info("[GITHUB][SYNC] Repository metadata completed for branch: {}", branch);
+                });
     }
 
-    private void syncCommitsStep(Long userId, String owner, String repo, String branch,
-                                 String repositoryName, GithubRepository repository) {
+    private Mono<Void> syncCommitsStep(Long userId, String owner, String repo, String branch,
+                                       String repositoryName, GithubRepository repository) {
         log.info("[GITHUB][SYNC] Step 2: Syncing commits for branch: {}", branch);
         publishSimpleMessage(userId, SseEventType.IN_PROGRESS,
                 "Syncing commits for " + repositoryName + "@" + branch);
 
-        SyncCount count = githubProcessor.processCommits(repository, owner, repo, branch, null);
-
-        GithubSyncProgress progress = GithubSyncProgress.of(
-                GithubSyncStep.COMMITS,
-                count,
-                repositoryName,
-                "Commits synced: " + count.saved() + " (branch: " + branch + ")"
-        );
-        publishProgressMessage(userId, SseEventType.IN_PROGRESS,
-                "Commits synced: " + count.saved(), progress);
-        log.info("[GITHUB][SYNC] Commits completed - total: {}, saved: {}",
-                count.totalFetched(), count.saved());
+        return githubProcessor.processCommits(repository, owner, repo, branch, null)
+                .doOnSuccess(count -> {
+                    GithubSyncProgress progress = GithubSyncProgress.of(
+                            GithubSyncStep.COMMITS,
+                            count,
+                            repositoryName,
+                            "Commits synced: " + count.saved() + " (branch: " + branch + ")"
+                    );
+                    publishProgressMessage(userId, SseEventType.IN_PROGRESS,
+                            "Commits synced: " + count.saved(), progress);
+                    log.info("[GITHUB][SYNC] Commits completed - total: {}, saved: {}",
+                            count.totalFetched(), count.saved());
+                })
+                .then();
     }
 
-    private void syncPullRequestsStep(Long userId, String owner, String repo, String branch,
-                                      String repositoryName, GithubRepository repository) {
+    private Mono<Void> syncPullRequestsStep(Long userId, String owner, String repo, String branch,
+                                            String repositoryName, GithubRepository repository) {
         log.info("[GITHUB][SYNC] Step 3: Syncing pull requests with base: {}", branch);
         publishSimpleMessage(userId, SseEventType.IN_PROGRESS,
                 "Syncing pull requests for " + repositoryName + " (base: " + branch + ")");
 
-        SyncCount count = githubProcessor.processPullRequests(repository, owner, repo, branch, "all", null);
-
-        GithubSyncProgress progress = GithubSyncProgress.of(
-                GithubSyncStep.PULL_REQUESTS,
-                count,
-                repositoryName,
-                "Pull requests synced: " + count.saved() + " (base: " + branch + ")"
-        );
-        publishProgressMessage(userId, SseEventType.IN_PROGRESS,
-                "Pull requests synced: " + count.saved(), progress);
-        log.info("[GITHUB][SYNC] Pull requests completed - total: {}, saved: {}",
-                count.totalFetched(), count.saved());
+        return githubProcessor.processPullRequests(repository, owner, repo, branch, "all", null)
+                .doOnSuccess(count -> {
+                    GithubSyncProgress progress = GithubSyncProgress.of(
+                            GithubSyncStep.PULL_REQUESTS,
+                            count,
+                            repositoryName,
+                            "Pull requests synced: " + count.saved() + " (base: " + branch + ")"
+                    );
+                    publishProgressMessage(userId, SseEventType.IN_PROGRESS,
+                            "Pull requests synced: " + count.saved(), progress);
+                    log.info("[GITHUB][SYNC] Pull requests completed - total: {}, saved: {}",
+                            count.totalFetched(), count.saved());
+                })
+                .then();
     }
 
-    private void syncIssuesStep(Long userId, String owner, String repo,
-                                String repositoryName, GithubRepository repository) {
+    private Mono<Void> syncIssuesStep(Long userId, String owner, String repo,
+                                      String repositoryName, GithubRepository repository) {
         log.info("[GITHUB][SYNC] Step 4: Syncing issues");
         publishSimpleMessage(userId, SseEventType.IN_PROGRESS,
                 "Syncing issues for " + repositoryName);
 
-        SyncCount count = githubProcessor.processIssues(repository, owner, repo, "all", null);
-
-        GithubSyncProgress progress = GithubSyncProgress.of(
-                GithubSyncStep.ISSUES,
-                count,
-                repositoryName,
-                "Issues synced: " + count.saved()
-        );
-        publishProgressMessage(userId, SseEventType.IN_PROGRESS,
-                "Issues synced: " + count.saved(), progress);
-        log.info("[GITHUB][SYNC] Issues completed - total: {}, saved: {}",
-                count.totalFetched(), count.saved());
+        return githubProcessor.processIssues(repository, owner, repo, "all", null)
+                .doOnSuccess(count -> {
+                    GithubSyncProgress progress = GithubSyncProgress.of(
+                            GithubSyncStep.ISSUES,
+                            count,
+                            repositoryName,
+                            "Issues synced: " + count.saved()
+                    );
+                    publishProgressMessage(userId, SseEventType.IN_PROGRESS,
+                            "Issues synced: " + count.saved(), progress);
+                    log.info("[GITHUB][SYNC] Issues completed - total: {}, saved: {}",
+                            count.totalFetched(), count.saved());
+                })
+                .then();
     }
 
-    private void syncCommentsStep(Long userId, String owner, String repo, String repositoryName,
-                                  GithubRepository repository) {
+    private Mono<Void> syncCommentsStep(Long userId, String owner, String repo, String repositoryName,
+                                        GithubRepository repository) {
         log.info("[GITHUB][SYNC] Step 5: Syncing comments");
         publishSimpleMessage(userId, SseEventType.IN_PROGRESS,
                 "Syncing comments for " + repositoryName);
 
-        SyncCount count = syncAllComments(owner, repo, repository);
-
-        GithubSyncProgress progress = GithubSyncProgress.of(
-                GithubSyncStep.COMMENTS,
-                count,
-                repositoryName,
-                "Comments synced: " + count.saved()
-        );
-        publishProgressMessage(userId, SseEventType.IN_PROGRESS,
-                "Comments synced: " + count.saved(), progress);
-        log.info("[GITHUB][SYNC] Comments completed - total: {}, saved: {}",
-                count.totalFetched(), count.saved());
+        return syncAllComments(owner, repo, repository)
+                .doOnSuccess(count -> {
+                    GithubSyncProgress progress = GithubSyncProgress.of(
+                            GithubSyncStep.COMMENTS,
+                            count,
+                            repositoryName,
+                            "Comments synced: " + count.saved()
+                    );
+                    publishProgressMessage(userId, SseEventType.IN_PROGRESS,
+                            "Comments synced: " + count.saved(), progress);
+                    log.info("[GITHUB][SYNC] Comments completed - total: {}, saved: {}",
+                            count.totalFetched(), count.saved());
+                })
+                .then();
     }
 
-    private void syncReviewsStep(Long userId, String owner, String repo, String repositoryName,
-                                 GithubRepository repository) {
+    private Mono<Void> syncReviewsStep(Long userId, String owner, String repo, String repositoryName,
+                                       GithubRepository repository) {
         log.info("[GITHUB][SYNC] Step 6: Syncing reviews");
         publishSimpleMessage(userId, SseEventType.IN_PROGRESS,
                 "Syncing reviews for " + repositoryName);
 
-        SyncCount count = syncAllReviews(owner, repo, repository);
-
-        GithubSyncProgress progress = GithubSyncProgress.of(
-                GithubSyncStep.REVIEWS,
-                count,
-                repositoryName,
-                "Reviews synced: " + count.saved()
-        );
-        publishProgressMessage(userId, SseEventType.IN_PROGRESS,
-                "Reviews synced: " + count.saved(), progress);
-        log.info("[GITHUB][SYNC] Reviews completed - total: {}, saved: {}",
-                count.totalFetched(), count.saved());
+        return syncAllReviews(owner, repo, repository)
+                .doOnSuccess(count -> {
+                    GithubSyncProgress progress = GithubSyncProgress.of(
+                            GithubSyncStep.REVIEWS,
+                            count,
+                            repositoryName,
+                            "Reviews synced: " + count.saved()
+                    );
+                    publishProgressMessage(userId, SseEventType.IN_PROGRESS,
+                            "Reviews synced: " + count.saved(), progress);
+                    log.info("[GITHUB][SYNC] Reviews completed - total: {}, saved: {}",
+                            count.totalFetched(), count.saved());
+                })
+                .then();
     }
 
-    private void syncFileChangesStep(Long userId, String owner, String repo, String repositoryName,
-                                     GithubRepository repository) {
+    private Mono<Void> syncFileChangesStep(Long userId, String owner, String repo, String repositoryName,
+                                           GithubRepository repository) {
         log.info("[GITHUB][SYNC] Step 7: Syncing PR file changes");
         publishSimpleMessage(userId, SseEventType.IN_PROGRESS,
                 "Syncing file changes for " + repositoryName);
 
-        SyncCount count = syncAllFileChanges(owner, repo, repository);
-
-        GithubSyncProgress progress = GithubSyncProgress.of(
-                GithubSyncStep.FILE_CHANGES,
-                count,
-                repositoryName,
-                "File changes synced: " + count.saved()
-        );
-        publishProgressMessage(userId, SseEventType.IN_PROGRESS,
-                "File changes synced: " + count.saved(), progress);
-        log.info("[GITHUB][SYNC] File changes completed - total: {}, saved: {}",
-                count.totalFetched(), count.saved());
+        return syncAllFileChanges(owner, repo, repository)
+                .doOnSuccess(count -> {
+                    GithubSyncProgress progress = GithubSyncProgress.of(
+                            GithubSyncStep.FILE_CHANGES,
+                            count,
+                            repositoryName,
+                            "File changes synced: " + count.saved()
+                    );
+                    publishProgressMessage(userId, SseEventType.IN_PROGRESS,
+                            "File changes synced: " + count.saved(), progress);
+                    log.info("[GITHUB][SYNC] File changes completed - total: {}, saved: {}",
+                            count.totalFetched(), count.saved());
+                })
+                .then();
     }
 
     // ==================== Private Helper Methods ====================
 
-    private SyncCount syncAllComments(String owner, String repo, GithubRepository repository) {
-        int totalFetched = 0;
-        int totalSaved = 0;
+    private Mono<SyncCount> syncAllComments(String owner, String repo, GithubRepository repository) {
+        Mono<SyncCount> prComments = persistenceService.findUnindexedPullRequests(repository.getRepositoryId())
+                .flatMapMany(Flux::fromIterable)
+                .flatMap(pr ->
+                        githubProcessor.processPullRequestComments(owner, repo, pr.getNumber())
+                                .flatMap(count -> {
+                                    // 처리 성공 시 indexedAt 업데이트
+                                    if (count.saved() > 0 || count.totalFetched() == 0) {
+                                        return persistenceService.markPullRequestAsIndexed(pr.getPullRequestId())
+                                                .thenReturn(count);
+                                    }
+                                    return Mono.just(count);
+                                })
+                                .onErrorResume(e -> {
+                                    log.error("[GITHUB][SYNC] Failed to sync comments for PR #{}", pr.getNumber(), e);
+                                    return Mono.just(SyncCount.empty());
+                                })
+                )
+                .reduce(SyncCount.empty(), (acc, count) ->
+                        SyncCount.of(acc.totalFetched() + count.totalFetched(),
+                                acc.saved() + count.saved())
+                );
 
-        // Sync PR comments
-        for (var pr : persistenceService.findUnindexedPullRequests(repository.getRepositoryId())) {
-            try {
-                SyncCount count = githubProcessor.processPullRequestComments(owner, repo, pr.getNumber());
-                totalFetched += count.totalFetched();
-                totalSaved += count.saved();
-            } catch (Exception e) {
-                log.error("[GITHUB][SYNC] Failed to sync comments for PR #{}", pr.getNumber(), e);
-            }
-        }
+        Mono<SyncCount> issueComments = persistenceService.findUnindexedIssues(repository.getRepositoryId())
+                .flatMapMany(Flux::fromIterable)
+                .flatMap(issue ->
+                        githubProcessor.processIssueComments(owner, repo, issue.getNumber())
+                                .flatMap(count -> {
+                                    // 처리 성공 시 indexedAt 업데이트
+                                    if (count.saved() > 0 || count.totalFetched() == 0) {
+                                        return persistenceService.markIssueAsIndexed(issue.getIssueId())
+                                                .thenReturn(count);
+                                    }
+                                    return Mono.just(count);
+                                })
+                                .onErrorResume(e -> {
+                                    log.error("[GITHUB][SYNC] Failed to sync comments for issue #{}", issue.getNumber(), e);
+                                    return Mono.just(SyncCount.empty());
+                                })
+                )
+                .reduce(SyncCount.empty(), (acc, count) ->
+                        SyncCount.of(acc.totalFetched() + count.totalFetched(),
+                                acc.saved() + count.saved())
+                );
 
-        // Sync issue comments
-        for (var issue : persistenceService.findUnindexedIssues(repository.getRepositoryId())) {
-            try {
-                SyncCount count = githubProcessor.processIssueComments(owner, repo, issue.getNumber());
-                totalFetched += count.totalFetched();
-                totalSaved += count.saved();
-            } catch (Exception e) {
-                log.error("[GITHUB][SYNC] Failed to sync comments for issue #{}", issue.getNumber(), e);
-            }
-        }
-
-        return SyncCount.of(totalFetched, totalSaved);
+        return Mono.zip(prComments, issueComments)
+                .map(tuple -> SyncCount.of(
+                        tuple.getT1().totalFetched() + tuple.getT2().totalFetched(),
+                        tuple.getT1().saved() + tuple.getT2().saved()
+                ));
     }
 
-    private SyncCount syncAllReviews(String owner, String repo, GithubRepository repository) {
-        int totalFetched = 0;
-        int totalSaved = 0;
-
-        for (var pr : persistenceService.findUnindexedPullRequests(repository.getRepositoryId())) {
-            try {
-                SyncCount count = githubProcessor.processPullRequestReviews(owner, repo, pr.getNumber());
-                totalFetched += count.totalFetched();
-                totalSaved += count.saved();
-            } catch (Exception e) {
-                log.error("[GITHUB][SYNC] Failed to sync reviews for PR #{}", pr.getNumber(), e);
-            }
-        }
-
-        return SyncCount.of(totalFetched, totalSaved);
+    private Mono<SyncCount> syncAllReviews(String owner, String repo, GithubRepository repository) {
+        return persistenceService.findUnindexedPullRequests(repository.getRepositoryId())
+                .flatMapMany(Flux::fromIterable)
+                .flatMap(pr ->
+                        githubProcessor.processPullRequestReviews(owner, repo, pr.getNumber())
+                                .flatMap(count -> {
+                                    // 처리 성공 시 indexedAt 업데이트
+                                    if (count.saved() > 0 || count.totalFetched() == 0) {
+                                        return persistenceService.markPullRequestAsIndexed(pr.getPullRequestId())
+                                                .thenReturn(count);
+                                    }
+                                    return Mono.just(count);
+                                })
+                                .onErrorResume(e -> {
+                                    log.error("[GITHUB][SYNC] Failed to sync reviews for PR #{}", pr.getNumber(), e);
+                                    return Mono.just(SyncCount.empty());
+                                })
+                )
+                .reduce(SyncCount.empty(), (acc, count) ->
+                        SyncCount.of(acc.totalFetched() + count.totalFetched(),
+                                acc.saved() + count.saved())
+                );
     }
 
-    private SyncCount syncAllFileChanges(String owner, String repo, GithubRepository repository) {
-        int totalFetched = 0;
-        int totalSaved = 0;
-
-        for (var pr : persistenceService.findUnindexedPullRequests(repository.getRepositoryId())) {
-            try {
-                SyncCount count = githubProcessor.processPullRequestFileChanges(owner, repo, pr.getNumber());
-                totalFetched += count.totalFetched();
-                totalSaved += count.saved();
-            } catch (Exception e) {
-                log.error("[GITHUB][SYNC] Failed to sync file changes for PR #{}", pr.getNumber(), e);
-            }
-        }
-
-        return SyncCount.of(totalFetched, totalSaved);
+    private Mono<SyncCount> syncAllFileChanges(String owner, String repo, GithubRepository repository) {
+        return persistenceService.findUnindexedPullRequests(repository.getRepositoryId())
+                .flatMapMany(Flux::fromIterable)
+                .flatMap(pr ->
+                        githubProcessor.processPullRequestFileChanges(owner, repo, pr.getNumber())
+                                .flatMap(count -> {
+                                    // 처리 성공 시 indexedAt 업데이트
+                                    if (count.saved() > 0 || count.totalFetched() == 0) {
+                                        return persistenceService.markPullRequestAsIndexed(pr.getPullRequestId())
+                                                .thenReturn(count);
+                                    }
+                                    return Mono.just(count);
+                                })
+                                .onErrorResume(e -> {
+                                    log.error("[GITHUB][SYNC] Failed to sync file changes for PR #{}", pr.getNumber(), e);
+                                    return Mono.just(SyncCount.empty());
+                                })
+                )
+                .reduce(SyncCount.empty(), (acc, count) ->
+                        SyncCount.of(acc.totalFetched() + count.totalFetched(),
+                                acc.saved() + count.saved())
+                );
     }
 
     private boolean shouldExecute(GithubSyncStep startFrom, GithubSyncStep target) {

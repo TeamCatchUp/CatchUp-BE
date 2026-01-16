@@ -9,9 +9,5 @@ import java.util.List;
 @Repository
 public interface GithubReviewRepository extends JpaRepository<GithubReview, Long> {
 
-    boolean existsByReviewId(Long reviewId);
-
-    List<GithubReview> findByIndexedAtIsNull();
-
-    List<GithubReview> findByRepository_RepositoryIdAndIndexedAtIsNull(Long repositoryId);
+    List<GithubReview> findAllByReviewIdIn(List<Long> reviewIds);
 }

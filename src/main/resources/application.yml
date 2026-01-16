@@ -41,6 +41,10 @@ spring:
     show-sql: false
     properties:
       hibernate:
+        jdbc:
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
 
