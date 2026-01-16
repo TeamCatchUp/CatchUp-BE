@@ -9,9 +9,5 @@ import java.util.List;
 @Repository
 public interface GithubCommentRepository extends JpaRepository<GithubComment, Long> {
 
-    boolean existsByCommentId(Long commentId);
-
-    List<GithubComment> findByIndexedAtIsNull();
-
-    List<GithubComment> findByRepository_RepositoryIdAndIndexedAtIsNull(Long repositoryId);
+    List<GithubComment> findAllByCommentIdIn(List<Long> commentIds);
 }

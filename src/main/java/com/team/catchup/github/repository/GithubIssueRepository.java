@@ -12,9 +12,9 @@ public interface GithubIssueRepository extends JpaRepository<GithubIssue, Long> 
 
     Optional<GithubIssue> findByRepository_RepositoryIdAndNumber(Long repositoryId, Integer number);
 
-    boolean existsByIssueId(Long issueId);
-
     List<GithubIssue> findByIndexedAtIsNull();
 
     List<GithubIssue> findByRepository_RepositoryIdAndIndexedAtIsNull(Long repositoryId);
+
+    List<GithubIssue> findAllByIssueIdIn(List<Long> issueIds);
 }
