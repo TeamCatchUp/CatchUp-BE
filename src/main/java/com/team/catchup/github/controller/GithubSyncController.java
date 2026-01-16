@@ -30,32 +30,21 @@ public class GithubSyncController {
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @Valid @RequestBody GithubFullSyncRequest request
     ) {
-
         log.info("[GITHUB][CONTROLLER] Full sync request received for {}/{}@{}",
+                request.owner(), request.repository(), request.branch());
+
+        githubSyncService.fullSync(
+                userDetails.getMemberId(),
                 request.owner(),
                 request.repository(),
                 request.branch()
         );
 
-        try {
-            githubSyncService.fullSync(
-                    userDetails.getMemberId(),
-                    request.owner(),
-                    request.repository(),
-                    request.branch()
-            );
-            return ResponseEntity.ok(Map.of(
-                    "status", "started",
-                    "message", String.format("Full sync started for %s/%s@%s",
-                            request.owner(), request.repository(), request.branch())
-            ));
-        } catch (Exception e) {
-            log.error("[GITHUB][CONTROLLER] Failed to start full sync", e);
-            return ResponseEntity.internalServerError().body(Map.of(
-                    "status", "error",
-                    "message", "Failed to start sync: " + e.getMessage()
-            ));
-        }
+        return ResponseEntity.ok(Map.of(
+                "status", "started",
+                "message", String.format("Full sync started for %s/%s@%s",
+                        request.owner(), request.repository(), request.branch())
+        ));
     }
 
     /**
@@ -70,26 +59,18 @@ public class GithubSyncController {
         log.info("[GITHUB][CONTROLLER] Retry sync request received for {}/{}@{} from step: {}",
                 request.owner(), request.repository(), request.branch(), request.startFrom());
 
-        try {
-            githubSyncService.fullSyncFrom(
-                    userDetails.getMemberId(),
-                    request.owner(),
-                    request.repository(),
-                    request.branch(),
-                    request.startFrom()
-            );
+        githubSyncService.fullSyncFrom(
+                userDetails.getMemberId(),
+                request.owner(),
+                request.repository(),
+                request.branch(),
+                request.startFrom()
+        );
 
-            return ResponseEntity.ok(Map.of(
-                    "status", "started",
-                    "message", String.format("Retry sync started for %s/%s@%s from step: %s",
-                            request.owner(), request.repository(), request.branch(), request.startFrom())
-            ));
-        } catch (Exception e) {
-            log.error("[GITHUB][CONTROLLER] Failed to start retry sync", e);
-            return ResponseEntity.internalServerError().body(Map.of(
-                    "status", "error",
-                    "message", "Failed to start retry sync: " + e.getMessage()
-            ));
-        }
+        return ResponseEntity.ok(Map.of(
+                "status", "started",
+                "message", String.format("Retry sync started for %s/%s@%s from step: %s",
+                        request.owner(), request.repository(), request.branch(), request.startFrom())
+        ));
     }
 }
