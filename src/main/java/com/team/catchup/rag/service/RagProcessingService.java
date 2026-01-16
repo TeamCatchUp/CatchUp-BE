@@ -9,9 +9,8 @@ import com.team.catchup.rag.client.RagApiClient;
 import com.team.catchup.rag.dto.client.ClientChatResponse;
 import com.team.catchup.rag.dto.client.ClientChatStreamingFinalResponse;
 import com.team.catchup.rag.dto.client.ClientChatStreamingResponse;
-import com.team.catchup.rag.dto.server.FastApiStreamingResponse;
-import com.team.catchup.rag.dto.server.ServerChatRequest;
-import com.team.catchup.rag.dto.server.ServerChatResponse;
+import com.team.catchup.rag.dto.client.UserSelectedPullRequest;
+import com.team.catchup.rag.dto.server.*;
 import com.team.catchup.rag.entity.ChatRoom;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -50,6 +49,10 @@ public class RagProcessingService {
                         if ("result".equals(fastApiDto.getType())) {
                             handleFinalAnswer(member, chatRoom, fastApiDto);
                         }
+
+                        else if ("interrupt".equals(fastApiDto.getType())) {
+                            handleInterrupt(memberId, fastApiDto);
+                        }
                         
                         // 중간 과정
                         else {
@@ -86,6 +89,22 @@ public class RagProcessingService {
         );
 
         // Client에게 전송
+        notificationService.sendToClient(memberId, sseMessage);
+    }
+
+    /**
+     * (Human-In-The-Loop) 답변 스트리밍 과정에서 사용자가 개입할 수 있도록
+     * Interrupt 이벤트 전송
+     */
+    private void handleInterrupt(Long memberId, FastApiStreamingResponse dto) {
+        ClientChatStreamingResponse interruptResponse = ClientChatStreamingResponse.createInterruptResponse(dto);
+
+        SseMessage<ClientChatStreamingResponse> sseMessage = SseMessage.withData(
+                SyncTarget.CHAT,
+                SseEventType.RAG_INTERRUPT,
+                interruptResponse
+        );
+
         notificationService.sendToClient(memberId, sseMessage);
     }
 
@@ -136,5 +155,37 @@ public class RagProcessingService {
                 "답변 생성 중 오류가 발생했습니다."
         );
         notificationService.sendToClient(memberId, errorMessage);
+    }
+
+    @Async("ragExecutor")
+    public void resumeRagAsync(
+            Member member, ChatRoom chatRoom, UUID sessionId, List<UserSelectedPullRequest> userSelectedPullRequests
+    ) {
+        Long memberId = member.getId();
+
+        try {
+            ragApiClient.resumeChatStream(ServerChatResumeRequest.of(sessionId, userSelectedPullRequests))
+                    .publishOn(Schedulers.boundedElastic())
+                    .doOnNext(fastApiDto -> {
+                        if ("result".equals(fastApiDto.getType())) {
+                            handleFinalAnswer(member, chatRoom, fastApiDto);
+                        }
+
+                        else if ("status".equals(fastApiDto.getType())) {
+                            handleProgressLog(member.getId(), fastApiDto);
+                        }
+                    })
+                    .doOnComplete(() -> {
+                        chatRoomService.updateLastActiveTime(sessionId);
+                        log.info("RAG Stream 완료 - sessionId: {}", sessionId);
+                    })
+                    .doOnError(e -> {
+                        handleError(memberId, sessionId, e);
+                    })
+                    .subscribe();
+        } catch (Exception e) {
+            log.error("RAG 답변 생성 재개 실패", e);
+            handleError(memberId, sessionId, e);
+        }
     }
 }

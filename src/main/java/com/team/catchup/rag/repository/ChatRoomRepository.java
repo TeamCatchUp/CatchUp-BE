@@ -9,4 +9,5 @@ import java.util.UUID;
 
 public interface ChatRoomRepository extends JpaRepository<ChatRoom, UUID> {
     List<ChatRoom> findByMemberOrderByUpdatedAtDesc(Member member);
+    ChatRoom findBySessionId(UUID sessionId);
 }

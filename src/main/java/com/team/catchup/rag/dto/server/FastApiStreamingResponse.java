@@ -17,6 +17,7 @@ public class FastApiStreamingResponse {
     private String node;
     private String message;  // type = status
     private String answer;   // type = result
+    private List<PullRequestCandidate> payload;  // typee = interrupt
     private List<ServerSource> sources;
     @JsonProperty("process_time")
     private Double processTime;
