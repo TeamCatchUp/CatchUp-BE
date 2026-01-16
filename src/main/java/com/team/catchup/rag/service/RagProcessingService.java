@@ -9,9 +9,8 @@ import com.team.catchup.rag.client.RagApiClient;
 import com.team.catchup.rag.dto.client.ClientChatResponse;
 import com.team.catchup.rag.dto.client.ClientChatStreamingFinalResponse;
 import com.team.catchup.rag.dto.client.ClientChatStreamingResponse;
-import com.team.catchup.rag.dto.server.FastApiStreamingResponse;
-import com.team.catchup.rag.dto.server.ServerChatRequest;
-import com.team.catchup.rag.dto.server.ServerChatResponse;
+import com.team.catchup.rag.dto.client.UserSelectedPullRequest;
+import com.team.catchup.rag.dto.server.*;
 import com.team.catchup.rag.entity.ChatRoom;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -156,5 +155,37 @@ public class RagProcessingService {
                 "답변 생성 중 오류가 발생했습니다."
         );
         notificationService.sendToClient(memberId, errorMessage);
+    }
+
+    @Async("ragExecutor")
+    public void resumeRagAsync(
+            Member member, ChatRoom chatRoom, UUID sessionId, List<UserSelectedPullRequest> userSelectedPullRequests
+    ) {
+        Long memberId = member.getId();
+
+        try {
+            ragApiClient.resumeChatStream(ServerChatResumeRequest.of(sessionId, userSelectedPullRequests))
+                    .publishOn(Schedulers.boundedElastic())
+                    .doOnNext(fastApiDto -> {
+                        if ("result".equals(fastApiDto.getType())) {
+                            handleFinalAnswer(member, chatRoom, fastApiDto);
+                        }
+
+                        else if ("status".equals(fastApiDto.getType())) {
+                            handleProgressLog(member.getId(), fastApiDto);
+                        }
+                    })
+                    .doOnComplete(() -> {
+                        chatRoomService.updateLastActiveTime(sessionId);
+                        log.info("RAG Stream 완료 - sessionId: {}", sessionId);
+                    })
+                    .doOnError(e -> {
+                        handleError(memberId, sessionId, e);
+                    })
+                    .subscribe();
+        } catch (Exception e) {
+            log.error("RAG 답변 생성 재개 실패", e);
+            handleError(memberId, sessionId, e);
+        }
     }
 }
