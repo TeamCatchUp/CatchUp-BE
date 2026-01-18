@@ -72,10 +72,6 @@ public class GithubPullRequest {
     @Column(name = "merged_at")
     private LocalDateTime mergedAt;
 
-    // 인덱싱 완료 시각
-    @Column(name = "indexed_at")
-    private LocalDateTime indexedAt;
-
     // Pull Request 웹 URL
     @Column(name = "html_url")
     private String htmlUrl;
@@ -90,13 +86,5 @@ public class GithubPullRequest {
         OPEN,
         CLOSED,
         MERGED
-    }
-
-    public void markAsIndexed() {
-        this.indexedAt = LocalDateTime.now();
-    }
-
-    public boolean isIndexed() {
-        return this.indexedAt != null;
     }
 }

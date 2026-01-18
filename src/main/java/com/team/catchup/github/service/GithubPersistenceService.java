@@ -113,13 +113,13 @@ public class GithubPersistenceService {
         ).subscribeOn(Schedulers.boundedElastic());
     }
 
-    public Mono<List<GithubPullRequest>> findUnindexedPullRequests(Long repositoryId) {
+    public Mono<List<GithubPullRequest>> findAllPullRequests(Long repositoryId) {
         return Mono.fromCallable(() ->
                 transactionTemplate.execute(status -> {
                     if (repositoryId != null) {
-                        return pullRequestRepository.findByRepository_RepositoryIdAndIndexedAtIsNull(repositoryId);
+                        return pullRequestRepository.findByRepository_RepositoryId(repositoryId);
                     }
-                    return pullRequestRepository.findByIndexedAtIsNull();
+                    return pullRequestRepository.findAll();
                 })
         ).subscribeOn(Schedulers.boundedElastic());
     }
@@ -163,13 +163,13 @@ public class GithubPersistenceService {
         ).subscribeOn(Schedulers.boundedElastic());
     }
 
-    public Mono<List<GithubIssue>> findUnindexedIssues(Long repositoryId) {
+    public Mono<List<GithubIssue>> findAllIssues(Long repositoryId) {
         return Mono.fromCallable(() ->
                 transactionTemplate.execute(status -> {
                     if (repositoryId != null) {
-                        return issueRepository.findByRepository_RepositoryIdAndIndexedAtIsNull(repositoryId);
+                        return issueRepository.findByRepository_RepositoryId(repositoryId);
                     }
-                    return issueRepository.findByIndexedAtIsNull();
+                    return issueRepository.findAll();
                 })
         ).subscribeOn(Schedulers.boundedElastic());
     }
@@ -257,29 +257,4 @@ public class GithubPersistenceService {
         ).subscribeOn(Schedulers.boundedElastic());
     }
 
-    // ==================== Mark as Indexed ====================
-
-    public Mono<Void> markPullRequestAsIndexed(Long pullRequestId) {
-        return Mono.fromRunnable(() ->
-                transactionTemplate.executeWithoutResult(status -> {
-                    pullRequestRepository.findById(pullRequestId).ifPresent(pr -> {
-                        pr.markAsIndexed();
-                        pullRequestRepository.save(pr);
-                    });
-                    log.debug("[GITHUB][PERSISTENCE] Marked PR #{} as indexed", pullRequestId);
-                })
-        ).subscribeOn(Schedulers.boundedElastic()).then();
-    }
-
-    public Mono<Void> markIssueAsIndexed(Long issueId) {
-        return Mono.fromRunnable(() ->
-                transactionTemplate.executeWithoutResult(status -> {
-                    issueRepository.findById(issueId).ifPresent(issue -> {
-                        issue.markAsIndexed();
-                        issueRepository.save(issue);
-                    });
-                    log.debug("[GITHUB][PERSISTENCE] Marked Issue #{} as indexed", issueId);
-                })
-        ).subscribeOn(Schedulers.boundedElastic()).then();
-    }
 }

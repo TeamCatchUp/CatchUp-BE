@@ -60,21 +60,9 @@ public class GithubCommit {
     @Column(name = "deletions")
     private Integer deletions;
 
-    // 인덱싱 완료 시각
-    @Column(name = "indexed_at")
-    private LocalDateTime indexedAt;
-
     // 커밋 웹 URL
     @Column(name = "html_url")
     private String htmlUrl;
-
-    public void markAsIndexed() {
-        this.indexedAt = LocalDateTime.now();
-    }
-
-    public boolean isIndexed() {
-        return this.indexedAt != null;
-    }
 
     public void setParents(List<GithubCommitParent> parents) {
         this.parents = parents;

@@ -56,10 +56,6 @@ public class GithubIssue {
     @Column(name = "closed_at")
     private LocalDateTime closedAt;
 
-    // 인덱싱 완료 시각
-    @Column(name = "indexed_at")
-    private LocalDateTime indexedAt;
-
     // Issue URL
     @Column(name = "html_url")
     private String htmlUrl;
@@ -70,13 +66,5 @@ public class GithubIssue {
     public enum IssueStatus {
         OPEN,
         CLOSED
-    }
-
-    public void markAsIndexed() {
-        this.indexedAt = LocalDateTime.now();
-    }
-
-    public boolean isIndexed() {
-        return this.indexedAt != null;
     }
 }

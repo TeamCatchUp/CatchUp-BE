@@ -57,10 +57,6 @@ public class GithubComment {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    // 인덱싱 완료 시각
-    @Column(name = "indexed_at")
-    private LocalDateTime indexedAt;
-
     // 댓글 URL
     @Column(name = "html_url")
     private String htmlUrl;
@@ -69,13 +65,5 @@ public class GithubComment {
         ISSUE_COMMENT,
         REVIEW_COMMENT,
         COMMIT_COMMENT
-    }
-
-    public void markAsIndexed() {
-        this.indexedAt = LocalDateTime.now();
-    }
-
-    public boolean isIndexed() {
-        return this.indexedAt != null;
     }
 }

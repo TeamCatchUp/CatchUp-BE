@@ -12,9 +12,7 @@ public interface GithubPullRequestRepository extends JpaRepository<GithubPullReq
 
     Optional<GithubPullRequest> findByRepository_RepositoryIdAndNumber(Long repositoryId, Integer number);
 
-    List<GithubPullRequest> findByIndexedAtIsNull();
-
-    List<GithubPullRequest> findByRepository_RepositoryIdAndIndexedAtIsNull(Long repositoryId);
+    List<GithubPullRequest> findByRepository_RepositoryId(Long repositoryId);
 
     List<GithubPullRequest> findAllByPullRequestIdIn(List<Long> pullRequestIds);
 }
