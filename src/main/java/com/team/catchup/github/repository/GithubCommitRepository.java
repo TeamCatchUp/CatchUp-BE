@@ -10,4 +10,6 @@ import java.util.List;
 public interface GithubCommitRepository extends JpaRepository<GithubCommit, Long> {
 
     List<GithubCommit> findAllByShaIn(List<String> shas);
+
+    List<GithubCommit> findByRepository_RepositoryIdAndShaIn(Long repositoryId, List<String> shas);
 }
