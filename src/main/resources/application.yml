@@ -157,6 +157,12 @@ github:
   memory:
     max-in-memory-size: 10485760
 
+  webhook:
+    secret: ${GITHUB_WEBHOOK_SECRET}
+    batch:
+      size: 10
+      interval-ms: 5000
+
 # ============================================
 # FastAPI RAG Server
 # ============================================
