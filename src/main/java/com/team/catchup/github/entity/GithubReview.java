@@ -44,10 +44,6 @@ public class GithubReview {
     @Column(name = "submitted_at")
     private LocalDateTime submittedAt;
 
-    // 인덱싱 완료 시각
-    @Column(name = "indexed_at")
-    private LocalDateTime indexedAt;
-
     // 리뷰 웹 URL
     @Column(name = "html_url")
     private String htmlUrl;
@@ -58,13 +54,5 @@ public class GithubReview {
         COMMENTED,
         DISMISSED,
         PENDING
-    }
-
-    public void markAsIndexed() {
-        this.indexedAt = LocalDateTime.now();
-    }
-
-    public boolean isIndexed() {
-        return this.indexedAt != null;
     }
 }
