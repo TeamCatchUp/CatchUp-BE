@@ -1,12 +1,16 @@
 package com.team.catchup.rag.dto.client;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.team.catchup.rag.dto.server.FastApiStreamingResponse;
+
+import java.util.UUID;
 
 /**
  * 답변 생성 과정 Streaming 마지막 응답으로 Client에게 전달할 데이터
  */
 
 public record ClientChatStreamingFinalResponse(
+        UUID sessionId,
         String type,  // result
         String node,  // generate
 
@@ -14,10 +18,14 @@ public record ClientChatStreamingFinalResponse(
         ClientChatResponse clientChatResponse  // LLM 최종 답변, 출처 포함
 ) {
     public static ClientChatStreamingFinalResponse of(
-            String type,
-            String node,
+            FastApiStreamingResponse dto,
             ClientChatResponse response
     ) {
-        return new ClientChatStreamingFinalResponse(type, node, response);
+        return new ClientChatStreamingFinalResponse(
+                dto.getSessionId(),
+                dto.getType(),
+                dto.getNode(),
+                response
+        );
     }
 }

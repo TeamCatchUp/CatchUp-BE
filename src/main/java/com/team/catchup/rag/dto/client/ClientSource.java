@@ -1,49 +1,45 @@
-package com.team.catchup.rag.dto.client; // 패키지 분리 권장
+package com.team.catchup.rag.dto.client;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.team.catchup.rag.dto.server.ServerCodeSource;
+import com.team.catchup.rag.dto.server.ServerPullRequestSource;
 import com.team.catchup.rag.dto.server.ServerSource;
-import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 
-/**
- * Spring -> Client 최종 답변 생성시 함께 제공되는 출처 관련 메타데이터
- */
+@Getter
+@SuperBuilder
+@NoArgsConstructor
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public class ClientSource {
 
-@Builder
-public record ClientSource(
-        Integer index,
+    private Integer index;
 
-        @JsonProperty("is_cited")
-        Boolean isCited,
+    @JsonProperty("is_cited")
+    private Boolean isCited;
 
-        @JsonProperty("source_type")
-        String sourceType,
+    @JsonProperty("source_type")
+    private Integer sourceType;
 
-        @JsonProperty("text")
-        String content,
+    @JsonProperty("relevance_score")
+    private Double relevanceScore;
 
-        @JsonProperty("file_path")
-        String filePath,
+    @JsonProperty("html_url")
+    private String htmlUrl;
 
-        String category,
+    @JsonProperty("text")
+    private String content;
 
-        String source,
-
-        @JsonProperty("html_url")
-        String htmlUrl,
-
-        String language
-) {
     public static ClientSource from(ServerSource serverSource) {
-        return ClientSource.builder()
-                .index(serverSource.index())
-                .isCited(serverSource.isCited())
-                .sourceType(serverSource.sourceType())
-                .content(serverSource.content())
-                .filePath(serverSource.filePath())
-                .category(serverSource.category())
-                .source(serverSource.source())
-                .htmlUrl(serverSource.htmlUrl())
-                .language(serverSource.language())
-                .build();
+        if (serverSource instanceof ServerCodeSource codeSource) {
+            return ClientCodeSource.from(codeSource);
+        }
+
+        else if (serverSource instanceof ServerPullRequestSource prSource) {
+            return ClientPullRequestSource.from(prSource);
+        }
+        throw new IllegalArgumentException("지원하지 않는 Source Type 입니다.");
     }
 }
