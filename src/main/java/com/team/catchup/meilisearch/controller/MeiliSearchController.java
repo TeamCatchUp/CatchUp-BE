@@ -1,16 +1,16 @@
 package com.team.catchup.meilisearch.controller;
 
-import com.team.catchup.meilisearch.document.MeiliSearchDocument;
-import com.team.catchup.meilisearch.dto.MeiliSearchDocumentRequest;
 import com.team.catchup.meilisearch.dto.MeiliSearchQueryResponse;
 import com.team.catchup.meilisearch.service.MeiliSearchService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
-import java.util.Optional;
 
 @RestController
 @RequiredArgsConstructor
@@ -22,11 +22,8 @@ public class MeiliSearchController {
      * Document 생성 또는 갱신
      */
     @PostMapping("/api/documents")
-    public ResponseEntity<Void> addOrUpdateDocument (
-            @RequestBody MeiliSearchDocumentRequest request
-    ){
-        List<MeiliSearchDocument> documents = request.documents();
-        meiliSearchService.addOrUpdateDocument(documents);
+    public ResponseEntity<Void> syncDocuments() {
+        meiliSearchService.syncAllJiraIssues();
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 

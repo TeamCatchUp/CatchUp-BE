@@ -1,27 +1,19 @@
 package com.team.catchup.meilisearch.listener;
 
-import com.meilisearch.sdk.exceptions.MeilisearchException;
-import com.team.catchup.meilisearch.document.MeiliSearchDocument;
-import com.team.catchup.meilisearch.listener.event.SyncedIssueMetaDataEvent;
 import com.team.catchup.meilisearch.service.MeiliSearchService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.event.TransactionPhase;
-import org.springframework.transaction.event.TransactionalEventListener;
-
-import java.util.List;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class MeiliSearchEventListener {
     private final MeiliSearchService meiliSearchService;
-
     /**
      * DB 트랜잭션 완료 이후 시점(AFTER_COMMIT)에 MeiliSearch Document을 비동기적으로 생성하는 이벤트 핸들러.
      */
+    /*
     @Async("meiliSearchExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleIssueSync(SyncedIssueMetaDataEvent event){
@@ -48,4 +40,5 @@ public class MeiliSearchEventListener {
         }
 
     }
+    */
 }
