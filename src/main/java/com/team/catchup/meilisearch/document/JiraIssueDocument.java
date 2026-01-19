@@ -30,6 +30,9 @@ public class JiraIssueDocument implements MeiliSearchDocument {
 
     private String projectKey;
 
+    private String parentKey;
+    private String parentSummary;
+
     @Override
     public String getIndexName() {
         String safeProjectName = (this.projectKey != null ? this.projectKey : "default")
@@ -45,7 +48,7 @@ public class JiraIssueDocument implements MeiliSearchDocument {
     }
 
 
-    public static JiraIssueDocument from(IssueMetadata entity) {
+    public static JiraIssueDocument from(IssueMetadata entity, IssueMetadata parentEntity) {
         if (entity == null) return null;
 
         JiraIssueDocumentBuilder builder = JiraIssueDocument.builder()
@@ -67,6 +70,11 @@ public class JiraIssueDocument implements MeiliSearchDocument {
         }
         if (entity.getAssignee() != null) builder.assigneeName(entity.getAssignee().getDisplayName());
         if (entity.getReporter() != null) builder.reporterName(entity.getReporter().getDisplayName());
+
+        if (parentEntity != null) {
+            builder.parentKey(parentEntity.getIssueKey());
+            builder.parentSummary(parentEntity.getSummary());
+        }
 
         return builder.build();
     }

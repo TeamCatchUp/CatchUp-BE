@@ -23,6 +23,7 @@ import org.springframework.util.CollectionUtils;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -45,8 +46,17 @@ public class MeiliSearchService {
         List<IssueMetadata> allIssues = issueMetaDataRepository.findAll();
         if (allIssues.isEmpty()) return;
 
+        Map<Integer, IssueMetadata> issueMap = allIssues.stream()
+                .collect(Collectors.toMap(IssueMetadata::getIssueId, Function.identity()));
+
         List<MeiliSearchDocument> documents = allIssues.stream()
-                .map(entity -> (MeiliSearchDocument) JiraIssueDocument.from(entity))
+                .map(entity -> {
+                    IssueMetadata parentEntity = null;
+                    if (entity.getParentIssueId() != null) {
+                        parentEntity = issueMap.get(entity.getParentIssueId());
+                    }
+                return (MeiliSearchDocument) JiraIssueDocument.from(entity, parentEntity);
+                })
                 .toList();
 
         log.info("[MeiliSearch] DB 데이터 {}건 동기화 시작", documents.size());
