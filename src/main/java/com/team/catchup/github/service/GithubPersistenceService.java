@@ -58,12 +58,16 @@ public class GithubPersistenceService {
                 transactionTemplate.execute(status -> {
                     if (commits.isEmpty()) return 0;
 
+                    Long repositoryId = commits.get(0).getRepository().getRepositoryId();
+
                     List<String> shas = commits.stream()
                             .map(GithubCommit::getSha)
                             .distinct()
                             .toList();
 
-                    Set<String> existingShas = commitRepository.findAllByShaIn(shas).stream()
+                    Set<String> existingShas = commitRepository
+                            .findByRepository_RepositoryIdAndShaIn(repositoryId, shas)
+                            .stream()
                             .map(GithubCommit::getSha)
                             .collect(Collectors.toSet());
 

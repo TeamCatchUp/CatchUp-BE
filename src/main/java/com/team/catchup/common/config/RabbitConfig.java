@@ -8,10 +8,20 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class RabbitConfig {
 
+    // Worker Event Publishing Queue
     public static final String QUEUE_NAME = "notion_sync_queue";
     public static final String GITHUB_REPOSITORY_QUEUE = "github_repository_queue";
     public static final String GITHUB_PULL_REQUEST_QUEUE = "github_pull_request_queue";
     public static final String GITHUB_ISSUE_QUEUE = "github_issue_queue";
+
+    /**
+     * Webhook Event 수신용 Queue
+     * 1. Push Event Queue
+     * 2. PR+Issue Event Queue
+     */
+    public static final String GITHUB_PUSH_EVENT_QUEUE = "github_push_queue";
+    public static final String GITHUB_PR_ISSUE_EVENT_QUEUE = "github_pr_issue_queue";
+
 
     @Bean
     public Queue notionSyncQueue() {
