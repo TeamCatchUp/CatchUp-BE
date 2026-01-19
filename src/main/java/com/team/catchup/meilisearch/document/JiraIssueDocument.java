@@ -1,6 +1,6 @@
 package com.team.catchup.meilisearch.document;
 
-import com.team.catchup.jira.dto.external.IssueMetadataApiResponse;
+import com.team.catchup.jira.entity.IssueMetadata;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
@@ -13,21 +13,30 @@ import lombok.Setter;
 @Builder
 public class JiraIssueDocument implements MeiliSearchDocument {
     private String id; // 예) BJDD-72
+    private String selfUrl;
 
     private String summary;
     private String description;
 
+    private String projectName;
+    private String issueTypeName;
+    private String assigneeName;
+    private String reporterName;
+
+    private Integer statusId;
+    private Integer priorityId;
     private String createdAt;
     private String resolutionDate;
 
-    private String assigneeId;
-    private String creatorId;
-    private String reporterId;
-
+    private String projectKey;
 
     @Override
     public String getIndexName() {
-        return "jira_issue";
+        String safeProjectName = (this.projectKey != null ? this.projectKey : "default")
+                .trim()
+                .toLowerCase()
+                .replaceAll("[^a-z0-9-_]", "_");
+        return safeProjectName + "_jira_issue";
     }
 
     @Override
@@ -36,47 +45,28 @@ public class JiraIssueDocument implements MeiliSearchDocument {
     }
 
 
-    /**
-     * Jira API 응답을 가공해서 JiraIssueDocument로 변환
-     * @param jiraIssue IssueMetadataApiResponse.JiraIssue
-     * @return JiraIssueDocument 객체
-     */
-    public static JiraIssueDocument from(IssueMetadataApiResponse.JiraIssue jiraIssue) {
-        if (jiraIssue == null){
-            return null;
+    public static JiraIssueDocument from(IssueMetadata entity) {
+        if (entity == null) return null;
+
+        JiraIssueDocumentBuilder builder = JiraIssueDocument.builder()
+                .id(entity.getIssueKey())
+                .summary(entity.getSummary())
+                .description(entity.getDescription())
+                .selfUrl(entity.getSelf())
+                .statusId(entity.getStatusId())
+                .priorityId(entity.getPriorityId());
+
+        if (entity.getIssueCreatedAt() != null) builder.createdAt(entity.getIssueCreatedAt().toString());
+        if (entity.getResolutionDate() != null) builder.resolutionDate(entity.getResolutionDate().toString());
+
+        // 연관 객체 데이터 Flattening
+        if (entity.getProject() != null) builder.projectName(entity.getProject().getName());
+        if (entity.getIssueType() != null) {
+            builder.projectKey(entity.getProject().getProjectKey());
+            builder.issueTypeName(entity.getIssueType().getName());
         }
-
-        JiraIssueDocumentBuilder builder = JiraIssueDocument.builder();
-
-        // 예) BJDD-72
-        builder.id(jiraIssue.key());
-
-        if (jiraIssue.fields() == null){
-            // fields가 없으면 최소한의 정보만 반환
-            return builder.build();
-        }
-
-        IssueMetadataApiResponse.Fields fields = jiraIssue.fields();
-
-        builder.summary(fields.summary());
-        builder.createdAt(fields.issueCreatedAt());
-        builder.resolutionDate(fields.resolutionDate());
-
-        // Description 추출
-        if (fields.description() != null) {
-            builder.description(fields.description().getAllText());
-        }
-
-        // Null check
-        builder.assigneeId(
-                fields.assignee() != null ? fields.assignee().id() : null
-        );
-        builder.creatorId(
-                fields.creator() != null ? fields.creator().id() : null
-        );
-        builder.reporterId(
-                fields.reporter() != null ? fields.reporter().id() : null
-        );
+        if (entity.getAssignee() != null) builder.assigneeName(entity.getAssignee().getDisplayName());
+        if (entity.getReporter() != null) builder.reporterName(entity.getReporter().getDisplayName());
 
         return builder.build();
     }
