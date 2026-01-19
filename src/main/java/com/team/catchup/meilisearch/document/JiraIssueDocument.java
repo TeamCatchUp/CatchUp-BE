@@ -34,6 +34,8 @@ public class JiraIssueDocument implements MeiliSearchDocument {
     private String parent_key;
     private String parent_summary;
 
+    private Integer source_type;
+
     @Override
     public String getIndexName() {
         String safeProjectName = (this.project_key != null ? this.project_key : "default")
@@ -58,7 +60,8 @@ public class JiraIssueDocument implements MeiliSearchDocument {
                 .description(entity.getDescription())
                 .self_url(entity.getSelf())
                 .status_id(entity.getStatusId())
-                .priority_id(entity.getPriorityId());
+                .priority_id(entity.getPriorityId())
+                .source_type(3);
 
         if (entity.getIssueCreatedAt() != null) builder.created_at(entity.getIssueCreatedAt().toString());
         if (entity.getResolutionDate() != null) builder.resolution_date(entity.getResolutionDate().toString());
