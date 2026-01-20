@@ -13,7 +13,7 @@ public record PullRequestCandidate(
         @JsonProperty("pr_number")
         @NotNull int prNumber,
         @NotBlank String title,
-        @JsonProperty("repo_name")
+        @JsonProperty("repo")
         @NotBlank String repoName,
         String summary,
         @NotBlank String owner
