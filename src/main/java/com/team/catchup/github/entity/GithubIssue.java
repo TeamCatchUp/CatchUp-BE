@@ -67,4 +67,12 @@ public class GithubIssue {
         OPEN,
         CLOSED
     }
+
+    // Webhook 이벤트로 받은 정보로 Issue 메타데이터 업데이트
+    public void updateFromWebhook(String title, IssueStatus status, LocalDateTime updatedAt, LocalDateTime closedAt) {
+        this.title = title;
+        this.status = status;
+        this.updatedAt = updatedAt;
+        this.closedAt = closedAt;
+    }
 }

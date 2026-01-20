@@ -24,19 +24,27 @@ public class GithubWebhookController {
             @RequestBody String payload) {
 
         if(!signatureValidator.validateSignature(payload, signature)) {
-            log.warn("[Github][Webhook] Invalid signature received");
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid signature received");
+            log.warn("[Webhook] Invalid signature received for event: {}", eventType);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid signature");
         }
 
         try {
             switch (eventType) {
                 case "push":
                     webhookEventService.handlePushEvent(payload);
+                    log.info("[Webhook] Successfully processed push event");
                     break;
+
                 case "pull_request":
-                case "issues":
-                    webhookEventService.handlePrIssueEvent(eventType, payload);
+                    webhookEventService.handlePrEvent(payload);
+                    log.info("[Webhook] Successfully processed pull_request event");
                     break;
+
+                case "issues":
+                    webhookEventService.handleIssueEvent(payload);
+                    log.info("[Webhook] Successfully processed issues event");
+                    break;
+
                 default:
                     log.debug("[Webhook] Unsupported event type: {}", eventType);
                     return ResponseEntity.ok("Event ignored");
@@ -45,8 +53,13 @@ public class GithubWebhookController {
             return ResponseEntity.ok("Processed");
 
         } catch (Exception e) {
-            log.error("[Webhook] Processing failed", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error");
+            log.error("[Webhook] Failed to process {} event - payload will be included in logs for debugging",
+                    eventType, e);
+            log.error("[Webhook] Failed payload: {}", payload);
+
+            // 500 Error -> Github에서 재시도 유도
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Processing failed - will be retried");
         }
     }
 }
