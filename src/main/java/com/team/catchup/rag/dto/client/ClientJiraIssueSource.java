@@ -1,6 +1,5 @@
 package com.team.catchup.rag.dto.client;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.team.catchup.rag.dto.server.ServerJiraIssueSource;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -11,27 +10,20 @@ import lombok.experimental.SuperBuilder;
 @RequiredArgsConstructor
 public class ClientJiraIssueSource extends ClientSource {
 
-    @JsonProperty("issue_type_name")
     private String issueTypeName;
 
     private String summary;
 
-    @JsonProperty("project_name")
     private String projectName;
 
-    @JsonProperty("issue_key")
     private String issueKey;
 
-    @JsonProperty("parent_key")
     private String parentKey;
 
-    @JsonProperty("parent_summary")
     private String parentSummary;
 
-    @JsonProperty("status_id")
     private Integer statusId;
 
-    @JsonProperty("assignee_name")
     private String assigneeName;
 
     public static ClientJiraIssueSource from(ServerJiraIssueSource source) {
