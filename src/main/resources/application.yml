@@ -158,7 +158,7 @@ github:
     max-in-memory-size: 10485760
 
   webhook:
-    secret: ${GITHUB_WEBHOOK_SECRET}
+    secret: 80ef0e9ea4e139adb2616b89a736b2193474e595e4688e0bc38b40f68fe6032e
     batch:
       size: 10
       interval-ms: 5000
