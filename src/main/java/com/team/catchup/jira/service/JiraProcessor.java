@@ -1,12 +1,14 @@
 package com.team.catchup.jira.service;
 
 import com.team.catchup.common.sse.dto.SyncCount;
+import com.team.catchup.jira.dto.external.IssueMetadataApiResponse;
+import com.team.catchup.jira.dto.external.IssueTypeApiResponse;
+import com.team.catchup.jira.dto.external.JiraProjectApiResponse;
+import com.team.catchup.jira.dto.external.JiraUserApiResponse;
 import com.team.catchup.jira.dto.response.IssueSyncResult;
-import com.team.catchup.jira.dto.external.*;
 import com.team.catchup.jira.dto.response.ProjectSyncResult;
 import com.team.catchup.jira.entity.*;
 import com.team.catchup.jira.mapper.*;
-import com.team.catchup.meilisearch.listener.event.SyncedIssueMetaDataEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -174,7 +176,7 @@ public class JiraProcessor {
             totalIssuesSaved += jiraPersistenceService.saveAllIssues(issueEntities);
 
             // MeiliSearch Document 변환 및 생성 이벤트 발행
-            applicationEventPublisher.publishEvent(new SyncedIssueMetaDataEvent(response));
+            // applicationEventPublisher.publishEvent(new SyncedIssueMetaDataEvent(response)); (Deprecated. Entity->Document로 변경)
 
             // IssueLinks & Attachments
             for (IssueMetadataApiResponse.JiraIssue jiraIssue : response.issues()) {

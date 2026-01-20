@@ -1,17 +1,66 @@
 package com.team.catchup.auth.controller;
 
-import com.team.catchup.auth.JwtTokenResponse;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import com.team.catchup.auth.service.AuthService;
+import com.team.catchup.auth.service.CookieService;
+import com.team.catchup.auth.util.TokenExtractor;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 @RestController
+@RequiredArgsConstructor
 public class AuthController {
-    /**
-     * 구글 로그인 성공 후 리디렉트 되어 JWT 토큰을 발급한다.
-     */
-    @GetMapping("/oauth/callback")
-    public JwtTokenResponse issueJwtToken(@RequestParam String token) {
-        return JwtTokenResponse.from(token);
+
+    private final AuthService authService;
+    private final CookieService cookieService;
+
+    @PostMapping("/api/auth/refresh")
+    public ResponseEntity<Map<String, String>> refreshToken(
+            @CookieValue(value = "refreshToken", required = false) String refreshToken,
+            HttpServletResponse response
+    ) {
+        if (refreshToken == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Refresh Token이 없습니다."));
+        }
+
+        String newAccessToken = authService.refreshAccessToken(refreshToken)
+                .accessToken();
+
+        response.addHeader("Set-Cookie",
+                cookieService.createAccessTokenCookie(newAccessToken).toString());
+
+        return ResponseEntity.ok(Map.of(
+                "message", "Access Token이 갱신되었습니다."
+        ));
+    }
+
+    // @CookieValue으로 개선가능 -> Swagger 테스트 목적상 Header 방식 가능하도록 유지
+    @PostMapping("/api/auth/logout")
+    public ResponseEntity<Map<String, String>> logout(
+            Authentication authentication,
+            HttpServletRequest request,
+            HttpServletResponse response
+    ) {
+        String accessToken = TokenExtractor.extractAccessToken(request);
+
+        if (accessToken != null) {
+            Long memberId = Long.valueOf(authentication.getName());
+            authService.logout(memberId, accessToken);
+        }
+
+        response.addHeader("Set-Cookie",
+                cookieService.createAccessTokenDeleteCookie().toString());
+        response.addHeader("Set-Cookie",
+                cookieService.createRefreshTokenDeleteCookie().toString());
+
+        return ResponseEntity.ok(Map.of(
+                "message", "로그아웃되었습니다."
+        ));
     }
 }

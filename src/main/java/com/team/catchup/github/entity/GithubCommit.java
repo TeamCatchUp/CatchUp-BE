@@ -10,7 +10,15 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
-@Table(name = "github_commit")
+@Table(
+    name = "github_commit",
+    uniqueConstraints = {
+        @UniqueConstraint(
+            name = "uk_commit_repository_sha",
+            columnNames = {"repository_id", "sha"}
+        )
+    }
+)
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
@@ -29,7 +37,7 @@ public class GithubCommit {
     private GithubRepository repository;
 
     // 커밋 SHA (40자 해시값)
-    @Column(nullable = false, unique = true, length = 40)
+    @Column(nullable = false, length = 40)
     private String sha;
 
     // 커밋 메시지
@@ -60,21 +68,9 @@ public class GithubCommit {
     @Column(name = "deletions")
     private Integer deletions;
 
-    // 인덱싱 완료 시각
-    @Column(name = "indexed_at")
-    private LocalDateTime indexedAt;
-
     // 커밋 웹 URL
     @Column(name = "html_url")
     private String htmlUrl;
-
-    public void markAsIndexed() {
-        this.indexedAt = LocalDateTime.now();
-    }
-
-    public boolean isIndexed() {
-        return this.indexedAt != null;
-    }
 
     public void setParents(List<GithubCommitParent> parents) {
         this.parents = parents;

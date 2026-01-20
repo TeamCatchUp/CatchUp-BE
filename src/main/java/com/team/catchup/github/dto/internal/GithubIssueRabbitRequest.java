@@ -9,43 +9,28 @@ import lombok.Getter;
 @Builder
 public class GithubIssueRabbitRequest {
 
-    @JsonProperty("issue_id")
-    private Long issueId;
-
     @JsonProperty("repository_id")
     private Long repositoryId;
 
-    @JsonProperty("repository_name")
-    private String repositoryName;
+    @JsonProperty("owner")
+    private String owner;
 
-    @JsonProperty("number")
-    private Integer number;
+    @JsonProperty("repo")
+    private String repoName;
 
-    @JsonProperty("title")
-    private String title;
+    @JsonProperty("issue_number")
+    private Integer issueNumber;
 
-    @JsonProperty("author_login")
-    private String authorLogin;
-
-    @JsonProperty("status")
-    private String status;
-
-    @JsonProperty("is_pull_request")
-    private Boolean isPullRequest;
-
-    @JsonProperty("html_url")
-    private String htmlUrl;
+    @JsonProperty("github_token")
+    private String githubToken;
 
     public static GithubIssueRabbitRequest from(GithubIssue issue) {
         return GithubIssueRabbitRequest.builder()
-            .issueId(issue.getIssueId())
             .repositoryId(issue.getRepository().getRepositoryId())
-            .repositoryName(issue.getRepository().getOwner() + "/" + issue.getRepository().getName())
-            .number(issue.getNumber())
-            .title(issue.getTitle())
-            .authorLogin(issue.getAuthorLogin())
-            .status(issue.getStatus().name())
-            .htmlUrl(issue.getHtmlUrl())
+            .owner(issue.getRepository().getOwner())
+            .repoName(issue.getRepository().getName())
+            .issueNumber(issue.getNumber())
+            .githubToken(null) // TODO: Private 저장소용 토큰이 필요한 경우 추가
             .build();
     }
 }

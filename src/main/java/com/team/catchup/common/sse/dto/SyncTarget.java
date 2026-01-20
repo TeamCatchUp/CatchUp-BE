@@ -4,5 +4,6 @@ public enum SyncTarget {
     JIRA,
     NOTION,
     GITHUB,
-    MESSAGE
+    MESSAGE,
+    CHAT
 }

@@ -72,10 +72,6 @@ public class GithubPullRequest {
     @Column(name = "merged_at")
     private LocalDateTime mergedAt;
 
-    // 인덱싱 완료 시각
-    @Column(name = "indexed_at")
-    private LocalDateTime indexedAt;
-
     // Pull Request 웹 URL
     @Column(name = "html_url")
     private String htmlUrl;
@@ -92,11 +88,14 @@ public class GithubPullRequest {
         MERGED
     }
 
-    public void markAsIndexed() {
-        this.indexedAt = LocalDateTime.now();
-    }
-
-    public boolean isIndexed() {
-        return this.indexedAt != null;
+    // Webhook 이벤트로 받은 정보로 PR 메타데이터 업데이트
+    public void updateFromWebhook(String title, PullRequestStatus status, LocalDateTime updatedAt,
+                                   LocalDateTime closedAt, LocalDateTime mergedAt, String mergeCommitSha) {
+        this.title = title;
+        this.status = status;
+        this.updatedAt = updatedAt;
+        this.closedAt = closedAt;
+        this.mergedAt = mergedAt;
+        this.mergeCommitSha = mergeCommitSha;
     }
 }

@@ -26,22 +26,26 @@ spring:
               - email
               - profile
   # ============================================
-  # Database - MySQL
+  # Database - PostgreSQL
   # ============================================
   datasource:
-    driver-class-name: com.mysql.cj.jdbc.Driver
-    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/catchup?useSSL=false&serverTimezone=Asia/Seoul&characterEncoding=UTF-8&allowPublicKeyRetrieval=true}
+    driver-class-name: org.postgresql.Driver
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/catchup}
     username: ${SPRING_DATASOURCE_USERNAME}
     password: ${SPRING_DATASOURCE_PASSWORD}
 
   jpa:
     hibernate:
       ddl-auto: ${JPA_HIBERNATE_DDL_AUTO:create-drop}
-    database-platform: org.hibernate.dialect.MySQLDialect
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
     show-sql: false
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.MySQLDialect
+        jdbc:
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
 
   # ============================================
@@ -83,7 +87,12 @@ logging:
 # ============================================
 jwt:
   secret: ${JWT_SECRET}
-  access_expiration: ${JWT_ACCESS_EXPIRATION:3600000}
+  access_expiration: ${JWT_ACCESS_EXPIRATION:3600000} # 1시간
+  refresh_expiration: ${JWT_REFRESH_EXPIRATION:604800000} # 7일
+  cookie:
+    secure: ${JWT_COOKIE_SECURE}
+    domain: ${JWT_COOKIE_DOMAIN}
+    same-site: ${JWT_COOKIE_SAMESITE:Lax}
 
 # ============================================
 # MeiliSearch
@@ -148,6 +157,12 @@ github:
   memory:
     max-in-memory-size: 10485760
 
+  webhook:
+    secret: 80ef0e9ea4e139adb2616b89a736b2193474e595e4688e0bc38b40f68fe6032e
+    batch:
+      size: 10
+      interval-ms: 5000
+
 # ============================================
 # FastAPI RAG Server
 # ============================================
@@ -163,6 +178,13 @@ rag:
     write: 60000
   memory:
     max-in-memory-size: 2097152
+
+# ============================================
+# (임시) OpenAI
+# ============================================
+openai:
+  api:
+    key: ${OPENAI_API_KEY}
 
 # ============================================
 # Custom App Config
