@@ -87,4 +87,15 @@ public class GithubPullRequest {
         CLOSED,
         MERGED
     }
+
+    // Webhook 이벤트로 받은 정보로 PR 메타데이터 업데이트
+    public void updateFromWebhook(String title, PullRequestStatus status, LocalDateTime updatedAt,
+                                   LocalDateTime closedAt, LocalDateTime mergedAt, String mergeCommitSha) {
+        this.title = title;
+        this.status = status;
+        this.updatedAt = updatedAt;
+        this.closedAt = closedAt;
+        this.mergedAt = mergedAt;
+        this.mergeCommitSha = mergeCommitSha;
+    }
 }
