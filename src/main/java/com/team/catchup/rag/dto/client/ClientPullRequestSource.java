@@ -1,6 +1,5 @@
 package com.team.catchup.rag.dto.client;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.team.catchup.rag.dto.server.ServerPullRequestSource;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -13,12 +12,10 @@ public class ClientPullRequestSource extends ClientSource{
 
     private String title;
 
-    @JsonProperty("pr_number")
     private Integer prNumber;
 
     private String state;
 
-    @JsonProperty("created_at")
     private Long createdAt;
 
     private String author;

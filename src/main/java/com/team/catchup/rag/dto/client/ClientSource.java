@@ -1,7 +1,6 @@
 package com.team.catchup.rag.dto.client;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.team.catchup.rag.dto.server.ServerCodeSource;
 import com.team.catchup.rag.dto.server.ServerJiraIssueSource;
 import com.team.catchup.rag.dto.server.ServerPullRequestSource;
@@ -18,19 +17,14 @@ public class ClientSource {
 
     private Integer index;
 
-    @JsonProperty("is_cited")
     private Boolean isCited;
 
-    @JsonProperty("source_type")
     private Integer sourceType;
 
-    @JsonProperty("relevance_score")
     private Double relevanceScore;
 
-    @JsonProperty("html_url")
     private String htmlUrl;
 
-    @JsonProperty("text")
     private String content;
 
     private String owner;
