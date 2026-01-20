@@ -27,6 +27,8 @@ public class ClientCodeSource extends ClientSource{
                 .relevanceScore(source.getRelevanceScore())
                 .htmlUrl(source.getHtmlUrl())
                 .content(source.getText())
+                .owner(source.getOwner())
+                .repo(source.getRepo())
                 // Code 전용
                 .filePath(source.getFilePath())
                 .category(source.getCategory())

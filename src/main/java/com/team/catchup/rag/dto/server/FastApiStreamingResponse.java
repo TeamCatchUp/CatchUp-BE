@@ -29,6 +29,9 @@ public class FastApiStreamingResponse {
 
     private List<ServerSource> sources;
 
+    @JsonProperty("related_jira_issues")
+    private List<ServerJiraIssueSource> relatedJiraIssues;  // type = result
+
     @JsonProperty("process_time")
     private Double processTime;
 }

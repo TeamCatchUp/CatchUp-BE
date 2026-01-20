@@ -23,6 +23,7 @@ import lombok.experimental.SuperBuilder;
 @JsonSubTypes({
         @JsonSubTypes.Type(value = ServerCodeSource.class, name = "0"),
         @JsonSubTypes.Type(value = ServerPullRequestSource.class, name = "1"),
+        @JsonSubTypes.Type(value = ServerJiraIssueSource.class, name = "3")
 })
 public abstract class ServerSource {
     private Integer index; // LLM이 답변에 직접인용한 문서 번호
@@ -41,4 +42,8 @@ public abstract class ServerSource {
 
     @JsonProperty("text")
     private String text;
+
+    private String owner;
+
+    private String repo;
 }

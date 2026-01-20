@@ -32,6 +32,8 @@ public class ClientPullRequestSource extends ClientSource{
                 .relevanceScore(source.getRelevanceScore())
                 .htmlUrl(source.getHtmlUrl())
                 .content(source.getText())
+                .owner(source.getOwner())
+                .repo(source.getRepo())
                 // PR 전용
                 .title(source.getTitle())
                 .prNumber(source.getPrNumber())

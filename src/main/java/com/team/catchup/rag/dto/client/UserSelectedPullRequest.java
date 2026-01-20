@@ -9,7 +9,7 @@ public record UserSelectedPullRequest(
         int prNumber,
 
         @JsonAlias({"repoName"})
-        @JsonProperty("repo_name")
+        @JsonProperty("repo")
         String repoName,
 
         String owner
