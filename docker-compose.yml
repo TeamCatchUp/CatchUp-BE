@@ -1,17 +1,18 @@
 services:
   db:
-    container_name: mysql
-    image: "mysql:8.0"
+    container_name: postgres
+    image: postgres:16
+    restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD}"
-      MYSQL_DATABASE: "${MYSQL_DATABASE}"
-      MYSQL_USER: "${MYSQL_USER}"
-      MYSQL_PASSWORD: "${MYSQL_PASSWORD}"
+      POSTGRES_DB: "${POSTGRES_DB}"
+      POSTGRES_USER: "${POSTGRES_USER}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      LANG: C.UTF-8
+      LC_ALL: C.UTF-8
     volumes:
-      - mysql_data:/var/lib/mysql
+      - postgres-data:/var/lib/postgresql/data
     networks:
       - db-network
-    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     env_file:
       - .env
 
@@ -32,4 +33,4 @@ networks:
   db-network:
 
 volumes:
-  mysql_data:
+  postgres-data:
