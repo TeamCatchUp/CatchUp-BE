@@ -92,7 +92,7 @@ jwt:
   cookie:
     secure: ${JWT_COOKIE_SECURE}
     domain: ${JWT_COOKIE_DOMAIN}
-    same-site: Lax
+    same-site: ${JWT_COOKIE_SAMESITE:Lax}
 
 # ============================================
 # MeiliSearch
