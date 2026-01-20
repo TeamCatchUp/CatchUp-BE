@@ -1,6 +1,5 @@
 package com.team.catchup.rag.dto.client;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.team.catchup.rag.dto.server.ServerCodeSource;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -11,7 +10,6 @@ import lombok.experimental.SuperBuilder;
 @NoArgsConstructor
 public class ClientCodeSource extends ClientSource{
 
-    @JsonProperty("file_path")
     private String filePath;
 
     private String category;
