@@ -2,6 +2,7 @@ package com.team.catchup.auth.controller;
 
 import com.team.catchup.auth.service.AuthService;
 import com.team.catchup.auth.service.CookieService;
+import com.team.catchup.auth.user.CustomUserDetails;
 import com.team.catchup.auth.util.TokenExtractor;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -50,7 +51,8 @@ public class AuthController {
         String accessToken = TokenExtractor.extractAccessToken(request);
 
         if (accessToken != null) {
-            Long memberId = Long.valueOf(authentication.getName());
+            CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+            Long memberId = userDetails.getMemberId();
             authService.logout(memberId, accessToken);
         }
 
