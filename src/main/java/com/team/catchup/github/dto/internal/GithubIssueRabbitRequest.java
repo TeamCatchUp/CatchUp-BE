@@ -15,7 +15,7 @@ public class GithubIssueRabbitRequest {
     @JsonProperty("owner")
     private String owner;
 
-    @JsonProperty("repo_name")
+    @JsonProperty("repo")
     private String repoName;
 
     @JsonProperty("issue_number")
