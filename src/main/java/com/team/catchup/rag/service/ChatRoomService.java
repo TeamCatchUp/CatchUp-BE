@@ -6,10 +6,11 @@ import com.team.catchup.rag.dto.client.ChatRoomResponse;
 import com.team.catchup.rag.entity.ChatRoom;
 import com.team.catchup.rag.repository.ChatRoomRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -57,15 +58,12 @@ public class ChatRoomService {
      * 채팅방 목록 조회
      */
     @Transactional(readOnly = true)
-    public List<ChatRoomResponse> getChatRooms(Long memberId) {
+    public Slice<ChatRoomResponse> getChatRooms(Long memberId, Pageable pageable) {
         Member owner = memberRepository.findById(memberId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자입니다."));
         
         // 채팅방 목록
-        List<ChatRoom> chatRooms = chatRoomRepository.findByMemberOrderByUpdatedAtDesc(owner);
-
-        return chatRooms.stream()
-                .map(ChatRoomResponse::from)
-                .toList();
+        return chatRoomRepository.findByMember(owner, pageable)
+                .map(ChatRoomResponse::from);
     }
 }
