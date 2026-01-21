@@ -10,12 +10,22 @@ import lombok.Builder;
  */
 @Builder
 public record PullRequestCandidate(
+
+        @NotNull
         @JsonProperty("pr_number")
-        @NotNull int prNumber,
+        int prNumber,
+
         @NotBlank String title,
+
         @JsonProperty("repo")
         @NotBlank String repoName,
+
         String summary,
-        @NotBlank String owner
+
+        @NotBlank
+        String owner,
+
+        @JsonProperty("created_at")
+        Integer createdAt
 ) {
 }

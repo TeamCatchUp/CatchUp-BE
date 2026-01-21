@@ -9,7 +9,8 @@ public record ClientPullRequestCandidate(
         String title,
         String repoName,
         String summary,
-        String owner
+        String owner,
+        Integer createdAt
 ) {
     public static ClientPullRequestCandidate from(PullRequestCandidate candidate) {
         return ClientPullRequestCandidate.builder()
@@ -18,6 +19,7 @@ public record ClientPullRequestCandidate(
                 .repoName(candidate.repoName())
                 .summary(candidate.summary())
                 .owner(candidate.owner())
+                .createdAt(candidate.createdAt())
                 .build();
     }
 }
