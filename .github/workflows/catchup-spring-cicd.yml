@@ -3,11 +3,11 @@ on:
   push:
     branches:
       - 'release/**'
-      - 'main'
+      - main
+      - develop
   pull_request:
     branches:
       - main
-      - develop
 
 jobs:
   build:
