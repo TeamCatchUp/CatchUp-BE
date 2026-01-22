@@ -27,7 +27,7 @@ public class ChatUsageLimitService {
                 .orElse(null);
 
         if (usageLimit != null && usageLimit.getUsageCount() >= DAILY_CHAT_LIMIT) {
-            return ClientChatResponse.of(sessionId, "일일 최대 채팅 횟수를 초과했습니다");
+            return ClientChatResponse.createInfoResponse(sessionId, "일일 최대 채팅 횟수를 초과했습니다");
         }
 
         if (usageLimit == null) {
