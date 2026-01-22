@@ -14,9 +14,18 @@ public class ClientCodeSource extends ClientSource{
 
     private String category;
 
-    private String lanugage;
+    private String language;
 
-    public static ClientCodeSource from(ServerCodeSource source) {
+    private Integer daysAgo;
+
+    private String author;
+
+    public static ClientCodeSource of(
+            ServerCodeSource source,
+            String latestCommitMessage,  // 해당 파일에 대한 최신 커밋
+            String author,  // 최신 커밋 작성자
+            Integer daysAgo  // 커밋 생성일로부터 지난 날 수
+    ) {
         return ClientCodeSource.builder()
                 // 공통 필드
                 .index(source.getIndex())
@@ -24,13 +33,15 @@ public class ClientCodeSource extends ClientSource{
                 .sourceType(source.getSourceType())
                 .relevanceScore(source.getRelevanceScore())
                 .htmlUrl(source.getHtmlUrl())
-                .content(source.getText())
+                .content(latestCommitMessage)
                 .owner(source.getOwner())
                 .repo(source.getRepo())
                 // Code 전용
                 .filePath(source.getFilePath())
                 .category(source.getCategory())
-                .lanugage(source.getLanguage())
+                .language(source.getLanguage())
+                .daysAgo(daysAgo)
+                .author(author)
                 .build();
     }
 }
