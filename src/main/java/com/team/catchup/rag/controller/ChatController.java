@@ -48,7 +48,7 @@ public class ChatController {
         // (비동기) 채팅 요청
         chatService.requestChat(query, sessionId, indexList, memberId);
 
-        return ResponseEntity.ok(ClientChatResponse.of(sessionId, "답변 생성을 시작합니다."));
+        return ResponseEntity.ok(ClientChatResponse.createInfoResponse(sessionId, "답변 생성을 시작합니다."));
     }
 
     /**
@@ -66,6 +66,6 @@ public class ChatController {
 
         chatService.resumeChat(sessionId, prs, memberId);
 
-        return ResponseEntity.ok(ClientChatResponse.of(sessionId, "답변 생성을 계속합니다."));
+        return ResponseEntity.ok(ClientChatResponse.createInfoResponse(sessionId, "답변 생성을 계속합니다."));
     }
 }
