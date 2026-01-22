@@ -1,6 +1,5 @@
 package com.team.catchup.rag.dto.client;
 
-import com.team.catchup.rag.dto.server.ServerChatResponse;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
@@ -18,20 +17,13 @@ public record ClientChatResponse(
 ) {
     public static ClientChatResponse createFinalResponse(
             UUID sessionId,
-            ServerChatResponse serverResponse
+            String answer,
+            List<ClientSource> clientSources
     ) {
-        List<ClientSource> clientSources = serverResponse.sources().stream()
-                .map(ClientSource::from)
-                .toList();
-
-        return new ClientChatResponse(
-                sessionId,
-                serverResponse.answer(),
-                clientSources
-        );
+        return new ClientChatResponse(sessionId, answer, clientSources);
     }
 
-    public static ClientChatResponse of(UUID sessionId, String answer) {
+    public static ClientChatResponse createInfoResponse(UUID sessionId, String answer) {
         return new ClientChatResponse(sessionId, answer, List.of());
     }
 }

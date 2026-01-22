@@ -4,21 +4,27 @@ import com.team.catchup.common.sse.dto.SseEventType;
 import com.team.catchup.common.sse.dto.SseMessage;
 import com.team.catchup.common.sse.dto.SyncTarget;
 import com.team.catchup.common.sse.service.NotificationService;
+import com.team.catchup.github.entity.GithubCommit;
+import com.team.catchup.github.service.GithubCommitService;
 import com.team.catchup.member.entity.Member;
 import com.team.catchup.rag.client.RagApiClient;
 import com.team.catchup.rag.dto.client.ClientChatResponse;
 import com.team.catchup.rag.dto.client.ClientChatStreamingFinalResponse;
 import com.team.catchup.rag.dto.client.ClientChatStreamingResponse;
 import com.team.catchup.rag.dto.client.UserSelectedPullRequest;
+import com.team.catchup.rag.dto.internal.CommitInfo;
 import com.team.catchup.rag.dto.server.*;
 import com.team.catchup.rag.entity.ChatRoom;
+import com.team.catchup.rag.mapper.ClientChatResponseMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import reactor.core.scheduler.Schedulers;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Slf4j
@@ -30,6 +36,9 @@ public class RagProcessingService {
     private final NotificationService notificationService;
     private final ChatHistoryService chatHistoryService;
     private final ChatRoomService chatRoomService;
+
+    private final GithubCommitService githubCommitService;
+    private final ClientChatResponseMapper clientChatResponseMapper;
 
     /**
      * (비동기) RAG 답변 생성 과정 스트리밍
@@ -114,15 +123,37 @@ public class RagProcessingService {
     private void handleFinalAnswer(Member member, ChatRoom chatRoom, FastApiStreamingResponse dto) {
         
         // 최종 답변 및 출처 추출
-        ServerChatResponse innerResponse = ServerChatResponse.from(dto);
+        ServerChatResponse serverChatResponse = ServerChatResponse.from(dto);
         
         // 최종 답변 저장
-        chatHistoryService.saveAssistantResponse(member, chatRoom, innerResponse);
+        chatHistoryService.saveAssistantResponse(member, chatRoom, serverChatResponse);
+
+        Map<String, CommitInfo> commitInfoHashMap = new HashMap<>();
 
         // Client 전달용 LLM 최종 답변 및 출처 가공
-        ClientChatResponse clientChatResponse = ClientChatResponse.createFinalResponse(
+        for (ServerSource source : serverChatResponse.sources()) {
+            if (source instanceof ServerCodeSource codeSource) {
+                String filePath = codeSource.getFilePath();
+
+                // 최신 커밋 조회
+                GithubCommit commitEntity = githubCommitService.getLatestCommit(filePath);
+
+                if (commitEntity != null) {
+                    CommitInfo info = new CommitInfo(
+                            commitEntity.getMessage(),
+                            commitEntity.getAuthorName(),
+                            commitEntity.getAuthorDate()
+                    );
+                    commitInfoHashMap.put(filePath, info);
+                }
+            }
+        }
+
+        // Client 전달용 객체 생성
+        ClientChatResponse clientChatResponse = clientChatResponseMapper.map(
                 chatRoom.getSessionId(),
-                innerResponse
+                serverChatResponse,
+                commitInfoHashMap
         );
 
         // Client에게 전달할 SseMessage의 data 필드 가공
@@ -140,7 +171,6 @@ public class RagProcessingService {
         
         // Client에게 전송
         notificationService.sendToClient(member.getId(), sseMessage);
-
     }
 
     /**
