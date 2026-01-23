@@ -143,4 +143,13 @@ public class NotificationService {
             log.info("[SSE] User Lock Cleaned - userId: {}", userId);
         }
     }
+
+    /**
+     * SSE 연결 여부 확인
+     * @param userId 사용자 ID
+     * @return 연결되어 있으면 true, 아니면 false
+     */
+    public boolean hasActiveConnection(Long userId) {
+        return emitters.containsKey(userId);
+    }
 }
