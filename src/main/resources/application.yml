@@ -92,7 +92,7 @@ jwt:
   cookie:
     secure: ${JWT_COOKIE_SECURE}
     domain: ${JWT_COOKIE_DOMAIN}
-    same-site: Lax
+    same-site: ${JWT_COOKIE_SAMESITE:Lax}
 
 # ============================================
 # MeiliSearch
@@ -178,6 +178,13 @@ rag:
     write: 60000
   memory:
     max-in-memory-size: 2097152
+
+# ============================================
+# (임시) OpenAI
+# ============================================
+openai:
+  api:
+    key: ${OPENAI_API_KEY}
 
 # ============================================
 # Custom App Config

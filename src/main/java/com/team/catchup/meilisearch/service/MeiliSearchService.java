@@ -1,20 +1,29 @@
 package com.team.catchup.meilisearch.service;
 
-import com.meilisearch.sdk.*;
+import com.meilisearch.sdk.Client;
+import com.meilisearch.sdk.Index;
+import com.meilisearch.sdk.IndexSearchRequest;
+import com.meilisearch.sdk.MultiSearchRequest;
+import com.meilisearch.sdk.exceptions.MeilisearchApiException;
 import com.meilisearch.sdk.exceptions.MeilisearchException;
 import com.meilisearch.sdk.json.GsonJsonHandler;
-import com.meilisearch.sdk.model.MultiSearchResult;
-import com.meilisearch.sdk.model.Results;
-import com.team.catchup.jira.dto.external.IssueMetadataApiResponse;
+import com.meilisearch.sdk.model.*;
+import com.team.catchup.jira.entity.IssueMetadata;
+import com.team.catchup.jira.repository.IssueMetaDataRepository;
 import com.team.catchup.meilisearch.document.JiraIssueDocument;
 import com.team.catchup.meilisearch.document.MeiliSearchDocument;
 import com.team.catchup.meilisearch.dto.MeiliSearchQueryResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -27,6 +36,32 @@ import java.util.stream.Collectors;
 public class MeiliSearchService {
     private final Client meiliSearchClient;
     private final GsonJsonHandler jsonHandler = new GsonJsonHandler();
+    private final IssueMetaDataRepository issueMetaDataRepository;
+
+    @Value("${openai.api.key}")
+    private String openAiApiKey;
+
+    @Transactional(readOnly = true)
+    public void syncAllJiraIssues() {
+        List<IssueMetadata> allIssues = issueMetaDataRepository.findAll();
+        if (allIssues.isEmpty()) return;
+
+        Map<Integer, IssueMetadata> issueMap = allIssues.stream()
+                .collect(Collectors.toMap(IssueMetadata::getIssueId, Function.identity()));
+
+        List<MeiliSearchDocument> documents = allIssues.stream()
+                .map(entity -> {
+                    IssueMetadata parentEntity = null;
+                    if (entity.getParentIssueId() != null) {
+                        parentEntity = issueMap.get(entity.getParentIssueId());
+                    }
+                return (MeiliSearchDocument) JiraIssueDocument.from(entity, parentEntity);
+                })
+                .toList();
+
+        log.info("[MeiliSearch] DB 데이터 {}건 동기화 시작", documents.size());
+        addOrUpdateDocument(documents);
+    }
 
     /**
      * MeiliSearch Document 생성 또는 갱신.
@@ -44,7 +79,28 @@ public class MeiliSearchService {
             try {
                 String documentsJson = jsonHandler.encode(docs);
                 Index index = meiliSearchClient.index(indexName);
-                log.info("[MeiliSearchService][addOrUpdateDocument][indexName: {}, docs: {}", indexName, documentsJson);
+
+                // Primary Key 추출
+                String primaryKey = docs.get(0).getPrimaryKeyFieldName();
+
+                try {
+                    // Embedder 설정 (임시)
+                    Settings currentSettings = index.getSettings();
+                    if (currentSettings.getEmbedders() == null || !currentSettings.getEmbedders().containsKey("default")) {
+                        log.info("[Index: {}] Embedder 설정 미적용 -> 설정 진행", indexName); // 추후 Worker로 위임
+                        configureEmbedder(index);
+                    }
+                } catch (MeilisearchApiException e) { // 인덱스 없을 경우
+                    if ("index_not_found".equals(e.getCode())) {
+                        log.info("[Index: {}] 인덱스 없음 -> 생성 및 설정 (PK: {})", indexName, primaryKey);
+                        meiliSearchClient.createIndex(indexName, primaryKey);
+                        configureEmbedder(index);
+                    } else {
+                        throw e;
+                    }
+                }
+
+                log.info("[MeiliSearchService][addOrUpdateDocument] indexName: {}, docCount: {}", indexName, docs.size());
                 index.addDocuments(documentsJson);
             } catch (MeilisearchException e) {
                 throw new RuntimeException("[" + indexName + "] 인덱스 문서 추가/갱신 실패", e);
@@ -92,16 +148,24 @@ public class MeiliSearchService {
         }
     }
 
-    /**
-     * Jira API 응답을 MeiliSearch Document로 변환
-     * @param response IssueMetadataApiResponse
-     * @return MeiliSearchDocument 구현체를 담은 리스트
-     */
-    public List<MeiliSearchDocument> createDocuments(IssueMetadataApiResponse response) {
-        // TODO: API 응답 출처에 따라 유연하게 문서를 생성하도록 수정. 현재는 Jira의 IssueMetadataApiResponse만 지원.
-        return response.issues().stream()
-                .map(JiraIssueDocument::from)
-                .collect(Collectors.toList());
-    }
+    private void configureEmbedder(Index index) {
+        try {
+            Embedder openAiEmbedder = new Embedder();
+            openAiEmbedder.setSource(EmbedderSource.OPEN_AI);
+            openAiEmbedder.setModel("text-embedding-3-large");
+            openAiEmbedder.setDimensions(3072);
+            openAiEmbedder.setApiKey(openAiApiKey);
 
+            HashMap<String, Embedder> embedders = new HashMap<>();
+            embedders.put("default", openAiEmbedder);
+
+            Settings settings = new Settings();
+            settings.setEmbedders(embedders);
+
+            index.updateSettings(settings);
+            log.info("[MeiliSearch] Embedder 설정 완료: {}", index);
+        } catch (Exception e) {
+            log.error("[MeiliSearch] Embedder 설정 중 오류 발생: {}", e.getMessage());
+        }
+    }
 }

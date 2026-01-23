@@ -1,38 +1,49 @@
 package com.team.catchup.rag.dto.server;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import lombok.Builder;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 
 /**
- * FastAPI -> Spring 최종 답변 생성 시에 함께 돌아오는 출처 관련 메타데이터
+ * FastAPI -> Spring 최종 답변 생성 시에 함께 돌아오는 출처 관련 공통 메타데이터
  */
 
-@Builder
-public record ServerSource(
-        Integer index,  // LLM이 답변에 직접 인용한 문서 번호
+@Getter
+@SuperBuilder
+@NoArgsConstructor
+@JsonTypeInfo(
+        use = JsonTypeInfo.Id.NAME,
+        include = JsonTypeInfo.As.EXISTING_PROPERTY,
+        property = "source_type",
+        visible = true
+)
+@JsonSubTypes({
+        @JsonSubTypes.Type(value = ServerCodeSource.class, name = "0"),
+        @JsonSubTypes.Type(value = ServerPullRequestSource.class, name = "1"),
+        @JsonSubTypes.Type(value = ServerJiraIssueSource.class, name = "3")
+})
+public abstract class ServerSource {
+    private Integer index; // LLM이 답변에 직접인용한 문서 번호
 
-        @JsonProperty("is_cited")
-        Boolean isCited, // LLM이 답변에 활용했는지 여부
+    @JsonProperty("is_cited")
+    private Boolean isCited;
 
-        @JsonProperty("relevance_score")
-        Double relevanceScore,
+    @JsonProperty("source_type")
+    private Integer sourceType;
 
-        @JsonProperty("source_type")
-        String sourceType,
+    @JsonProperty("relevance_score")
+    private Double relevanceScore;
 
-        @JsonProperty("text")
-        String content,
+    @JsonProperty("html_url")
+    private String htmlUrl;
 
-        @JsonProperty("file_path")
-        String filePath,
+    @JsonProperty("text")
+    private String text;
 
-        String category,
+    private String owner;
 
-        String source, // 문서 출처
-
-        @JsonProperty("html_url")
-        String htmlUrl,
-
-        String language
-) {
+    private String repo;
 }

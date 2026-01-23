@@ -127,8 +127,7 @@ public class RagProcessingService {
 
         // Client에게 전달할 SseMessage의 data 필드 가공
         ClientChatStreamingFinalResponse finalWrapper = ClientChatStreamingFinalResponse.of(
-                dto.getType(),
-                dto.getNode(),
+                dto,
                 clientChatResponse
         );
 
@@ -177,7 +176,7 @@ public class RagProcessingService {
                     })
                     .doOnComplete(() -> {
                         chatRoomService.updateLastActiveTime(sessionId);
-                        log.info("RAG Stream 완료 - sessionId: {}", sessionId);
+                        log.info("resumRagAsync 완료 - sessionId: {}", sessionId);
                     })
                     .doOnError(e -> {
                         handleError(memberId, sessionId, e);
