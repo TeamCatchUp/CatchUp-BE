@@ -45,6 +45,12 @@ public class ChatController {
             return ResponseEntity.ok(limitResponse);
         }
 
+        // SSE 연결 확인
+        ClientChatResponse sseConnectionResponse = chatService.checkSseConnection(memberId, sessionId);
+        if (sseConnectionResponse != null) {
+            return ResponseEntity.ok(sseConnectionResponse);
+        }
+
         // (비동기) 채팅 요청
         chatService.requestChat(query, sessionId, indexList, memberId);
 
@@ -63,6 +69,12 @@ public class ChatController {
         Long memberId = userDetails.getMemberId();
         UUID sessionId = request.sessionId();
         List<UserSelectedPullRequest> prs = request.userSelectedPullRequests();
+
+        // SSE 연결 확인
+        ClientChatResponse sseConnectionResponse = chatService.checkSseConnection(memberId, sessionId);
+        if (sseConnectionResponse != null) {
+            return ResponseEntity.ok(sseConnectionResponse);
+        }
 
         chatService.resumeChat(sessionId, prs, memberId);
 
