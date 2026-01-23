@@ -1,5 +1,6 @@
 package com.team.catchup.rag.service;
 
+import com.team.catchup.common.sse.service.NotificationService;
 import com.team.catchup.member.entity.Member;
 import com.team.catchup.member.repository.MemberRepository;
 import com.team.catchup.rag.dto.client.ClientChatResponse;
@@ -25,12 +26,24 @@ public class ChatService {
     private final ChatRoomService chatRoomService;
     private final RagProcessingService ragProcessingService;
     private final ChatRoomRepository chatRoomRepository;
+    private final NotificationService notificationService;
 
     /**
      * 일일 채팅 제한 여부 확인
      */
     public ClientChatResponse checkUsageLimit(Long memberId, UUID sessionId) {
         return chatUsageLimitService.checkAndIncrementUsageLimit(memberId, sessionId);
+    }
+
+    /**
+     * SSE 연결 여부 확인
+     */
+    public ClientChatResponse checkSseConnection(Long memberId, UUID sessionId) {
+        if (!notificationService.hasActiveConnection(memberId)) {
+            log.warn("[Chat] SSE connection not found for memberId: {}", memberId);
+            return ClientChatResponse.of(sessionId, "SSE 연결이 필요합니다.");
+        }
+        return null;
     }
     
    @Transactional
@@ -56,7 +69,7 @@ public class ChatService {
         Member member = validateMember(memberId);
 
         ChatRoom chatRoom = chatRoomRepository.findBySessionId(sessionId);
-        
+
         // (비동기) FastAPI RAG 서버로 답변 생성 재개 요청
         ragProcessingService.resumeRagAsync(member, chatRoom, sessionId, userSelectedPullRequests);
    }

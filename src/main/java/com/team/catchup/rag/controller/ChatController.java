@@ -45,10 +45,16 @@ public class ChatController {
             return ResponseEntity.ok(limitResponse);
         }
 
+        // SSE 연결 확인
+        ClientChatResponse sseConnectionResponse = chatService.checkSseConnection(memberId, sessionId);
+        if (sseConnectionResponse != null) {
+            return ResponseEntity.ok(sseConnectionResponse);
+        }
+
         // (비동기) 채팅 요청
         chatService.requestChat(query, sessionId, indexList, memberId);
 
-        return ResponseEntity.ok(ClientChatResponse.createInfoResponse(sessionId, "답변 생성을 시작합니다."));
+        return ResponseEntity.ok(ClientChatResponse.of(sessionId, "답변 생성을 시작합니다."));
     }
 
     /**
@@ -64,8 +70,14 @@ public class ChatController {
         UUID sessionId = request.sessionId();
         List<UserSelectedPullRequest> prs = request.userSelectedPullRequests();
 
+        // SSE 연결 확인
+        ClientChatResponse sseConnectionResponse = chatService.checkSseConnection(memberId, sessionId);
+        if (sseConnectionResponse != null) {
+            return ResponseEntity.ok(sseConnectionResponse);
+        }
+
         chatService.resumeChat(sessionId, prs, memberId);
 
-        return ResponseEntity.ok(ClientChatResponse.createInfoResponse(sessionId, "답변 생성을 계속합니다."));
+        return ResponseEntity.ok(ClientChatResponse.of(sessionId, "답변 생성을 계속합니다."));
     }
 }
