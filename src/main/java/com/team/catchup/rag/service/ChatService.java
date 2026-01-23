@@ -41,7 +41,7 @@ public class ChatService {
     public ClientChatResponse checkSseConnection(Long memberId, UUID sessionId) {
         if (!notificationService.hasActiveConnection(memberId)) {
             log.warn("[Chat] SSE connection not found for memberId: {}", memberId);
-            return ClientChatResponse.of(sessionId, "SSE 연결이 필요합니다.");
+            return ClientChatResponse.createInfoResponse(sessionId, "SSE 연결이 필요합니다.");
         }
         return null;
     }
