@@ -133,6 +133,21 @@ public class GithubApiService {
         return fetchPaginatedData(url);
     }
 
+    /**
+     * Git Tree 조회
+     * 특정 브랜치의 전체 파일 구조를 가져옵니다.
+     */
+    public Mono<JsonNode> getGitTree(String owner, String repo, String branch) {
+        String url = String.format("/repos/%s/%s/git/trees/%s?recursive=1", owner, repo, branch);
+        log.info("[GITHUB][API] Fetching git tree for {}/{} branch: {}", owner, repo, branch);
+
+        return githubWebClient.get()
+                .uri(url)
+                .retrieve()
+                .bodyToMono(JsonNode.class)
+                .doOnError(e -> log.error("[GITHUB][API] Failed to fetch git tree: {}/{}", owner, repo, e));
+    }
+
     // ==================== Private Pagination Methods ====================
 
     /**
