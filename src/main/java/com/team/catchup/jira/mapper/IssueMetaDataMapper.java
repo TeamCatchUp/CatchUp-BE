@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.net.URI;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -43,7 +44,7 @@ public class IssueMetaDataMapper {
             return IssueMetadata.builder()
                     .issueId(parseInteger(jiraIssue.id()))
                     .issueKey(jiraIssue.key())
-                    .self(jiraIssue.self())
+                    .self(toBrowseUrl(jiraIssue.self(), jiraIssue.key()))
                     .issueType(issueType)
                     .project(jiraProject)
                     .summary(fields.summary())
@@ -116,6 +117,19 @@ public class IssueMetaDataMapper {
             return jiraUserRepository.findById(userID.id()).orElse(null);
         }
         return null;
+    }
+
+    private String toBrowseUrl(String selfUrl, String issueKey) {
+        if (selfUrl == null || issueKey == null) {
+            return selfUrl;
+        }
+        try {
+            URI uri = URI.create(selfUrl);
+            return uri.getScheme() + "://" + uri.getHost() + "/browse/" + issueKey;
+        } catch (IllegalArgumentException e) {
+            log.warn("Failed to parse self URL: {}", selfUrl);
+            return selfUrl;
+        }
     }
 
     private IssueType findIssueType(IssueMetadataApiResponse.Fields fields) {
