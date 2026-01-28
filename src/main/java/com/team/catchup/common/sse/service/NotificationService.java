@@ -83,7 +83,9 @@ public class NotificationService {
             log.debug("[SSE] Sent message for userId - {}/ type - {}", userId, message.type());
 
             if(message.type() == SseEventType.COMPLETED
-            || message.type() == SseEventType.FAILED || message.type() == SseEventType.RAG_DONE) {
+            || message.type() == SseEventType.FAILED
+                    || message.type() == SseEventType.RAG_DONE
+            || message.type() == SseEventType.RAG_INTERRUPT) {
                 emitter.complete();
                 emitters.remove(userId);
                 cleanupUserLock(userId);
