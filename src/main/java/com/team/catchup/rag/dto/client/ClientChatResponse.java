@@ -14,18 +14,20 @@ public record ClientChatResponse(
         @NotNull UUID sessionId,
         @NotBlank String answer,
         List<ClientSource> sources,
-        Long chatHistoryId
+        Long chatHistoryId,
+        Boolean hasFeedback
 ) {
     public static ClientChatResponse createFinalResponse(
             UUID sessionId,
             String answer,
             List<ClientSource> clientSources,
-            Long chatHistoryId
+            Long chatHistoryId,
+            Boolean hasFeedback
     ) {
-        return new ClientChatResponse(sessionId, answer, clientSources, chatHistoryId);
+        return new ClientChatResponse(sessionId, answer, clientSources, chatHistoryId, hasFeedback);
     }
 
     public static ClientChatResponse createInfoResponse(UUID sessionId, String answer) {
-        return new ClientChatResponse(sessionId, answer, List.of(), null);
+        return new ClientChatResponse(sessionId, answer, List.of(), null, null);
     }
 }

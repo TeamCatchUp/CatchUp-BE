@@ -17,6 +17,7 @@ import com.team.catchup.rag.dto.server.*;
 import com.team.catchup.rag.entity.ChatHistory;
 import com.team.catchup.rag.entity.ChatRoom;
 import com.team.catchup.rag.mapper.ClientChatResponseMapper;
+import com.team.catchup.rag.repository.ChatFeedbackRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -37,6 +38,7 @@ public class RagProcessingService {
     private final NotificationService notificationService;
     private final ChatHistoryService chatHistoryService;
     private final ChatRoomService chatRoomService;
+    private final ChatFeedbackRepository chatFeedbackRepository;
 
     private final GithubCommitService githubCommitService;
     private final ClientChatResponseMapper clientChatResponseMapper;
@@ -150,12 +152,19 @@ public class RagProcessingService {
             }
         }
 
-        // Client 전달용 객체 생성 (chatHistoryId 포함)
+        // 피드백 존재 여부 확인
+        boolean hasFeedback = chatFeedbackRepository.existsByMemberIdAndChatHistoryId(
+                member.getId(),
+                savedChatHistory.getId()
+        );
+
+        // Client 전달용 객체 생성 (chatHistoryId, hasFeedback 포함)
         ClientChatResponse clientChatResponse = clientChatResponseMapper.map(
                 chatRoom.getSessionId(),
                 serverChatResponse,
                 commitInfoHashMap,
-                savedChatHistory.getId()
+                savedChatHistory.getId(),
+                hasFeedback
         );
 
         // Client에게 전달할 SseMessage의 data 필드 가공
