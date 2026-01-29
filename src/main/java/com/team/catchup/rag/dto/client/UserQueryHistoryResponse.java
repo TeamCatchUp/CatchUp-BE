@@ -10,13 +10,17 @@ import java.util.UUID;
 public record UserQueryHistoryResponse(
         UUID sessionId,
         String query,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        Long chatHistoryId,
+        Boolean hasFeedback
 ) {
-    public static UserQueryHistoryResponse from(ChatHistory history){
+    public static UserQueryHistoryResponse from(ChatHistory history, Boolean hasFeedback) {
         return UserQueryHistoryResponse.builder()
                 .sessionId(history.getChatRoom().getSessionId())
                 .query(history.getContent())
                 .createdAt(history.getCreatedAt())
+                .chatHistoryId(history.getId())
+                .hasFeedback(hasFeedback)
                 .build();
     }
 }

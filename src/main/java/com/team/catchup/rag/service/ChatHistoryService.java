@@ -12,6 +12,7 @@ import com.team.catchup.rag.dto.server.ServerCodeSource;
 import com.team.catchup.rag.entity.ChatHistory;
 import com.team.catchup.rag.entity.ChatRoom;
 import com.team.catchup.rag.mapper.ChatHistoryMapper;
+import com.team.catchup.rag.repository.ChatFeedbackRepository;
 import com.team.catchup.rag.repository.ChatHistoryRepository;
 import com.team.catchup.rag.repository.ChatRoomRepository;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +34,7 @@ public class ChatHistoryService {
     private final ChatRoomRepository chatRoomRepository;
     private final MemberRepository memberRepository;
     private final ChatHistoryMapper chatHistoryMapper;
+    private final ChatFeedbackRepository chatFeedbackRepository;
 
     /**
      * 사용자 쿼리와 메타데이터를 DB에 저장한다.
@@ -81,7 +83,13 @@ public class ChatHistoryService {
         validateMember(chatRoom, memberId);
 
         return chatHistoryRepository.findByChatRoomAndRole(chatRoom, "user", pageable)
-                .map(UserQueryHistoryResponse::from);
+                .map(history -> {
+                    boolean hasFeedback = chatFeedbackRepository.existsByMemberIdAndChatHistoryId(
+                            memberId,
+                            history.getId()
+                    );
+                    return UserQueryHistoryResponse.from(history, hasFeedback);
+                });
     }
 
     /**
@@ -91,8 +99,15 @@ public class ChatHistoryService {
     public Slice<UserQueryHistoryResponse> getAllUserQueryHistories(Long memberId, Pageable pageable) {
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자입니다."));
+
         return chatHistoryRepository.findByMemberAndRole(member, "user", pageable)
-                .map(UserQueryHistoryResponse::from);
+                .map(history -> {
+                    boolean hasFeedback = chatFeedbackRepository.existsByMemberIdAndChatHistoryId(
+                            memberId,
+                            history.getId()
+                    );
+                    return UserQueryHistoryResponse.from(history, hasFeedback);
+                });
     }
 
     /**
