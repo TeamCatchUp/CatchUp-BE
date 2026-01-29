@@ -7,10 +7,7 @@ import com.team.catchup.jira.service.JiraIssueService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -19,6 +16,16 @@ import java.util.List;
 public class JiraController {
 
     private final JiraIssueService jiraIssueService;
+
+    @GetMapping("/api/jira/issues/{issueKey}")
+    public ResponseEntity<JiraIssueResponse> getIssueMetadata(
+            @PathVariable String issueKey,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        JiraIssueResponse response = jiraIssueService.getIssueMetadata(issueKey);
+
+        return ResponseEntity.ok(response);
+    }
 
     @GetMapping("/api/jira/issues")
     public ResponseEntity<List<JiraIssueResponse>> getRecentlyReadIssues(

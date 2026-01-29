@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 @Service
@@ -56,18 +57,25 @@ public class JiraIssueService {
                 .map(record -> {
                     IssueMetadata issue = record.getIssueMetadata();
 
-                    List<String> parentSummaries = new ArrayList<>();
-                    Integer parentId = issue.getParentIssueId();
-                    if (parentId != null) {
-                        issueMetaDataRepository.findSummaryByIssueId(parentId)
-                                .ifPresent(parentSummaries::add);
-                    }
-
-                    List<String> childrenSummaries = issueMetaDataRepository.findChildSummariesByParentId(issue.getIssueId());
+                    HashMap<String, List<String>> summaryMap = getSummaries(issue);
+                    List<String> parentSummaries = summaryMap.get("parentSummaries");
+                    List<String> childrenSummaries = summaryMap.get("childrenSummaries");
 
                     return JiraIssueResponse.of(issue, parentSummaries, childrenSummaries);
                 })
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public JiraIssueResponse getIssueMetadata(String issueKey) {
+        IssueMetadata issue = issueMetaDataRepository.findByIssueKey(issueKey)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 이슈입니다."));
+
+        HashMap<String, List<String>> summaryMap = getSummaries(issue);
+        List<String> parentSummaries = summaryMap.get("parentSummaries");
+        List<String> childrenSummaries = summaryMap.get("childrenSummaries");
+
+        return JiraIssueResponse.of(issue, parentSummaries, childrenSummaries);
     }
 
     private Member getMember(Long memberId) {
@@ -79,4 +87,24 @@ public class JiraIssueService {
         return issueMetaDataRepository.findById(issueId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 Jira 이슈입니다."));
     }
+
+    HashMap<String, List<String>> getSummaries(IssueMetadata issue) {
+
+        HashMap<String, List<String>> summaryMap = new HashMap<>();
+
+        List<String> parentSummaries = new ArrayList<>();
+        Integer parentId = issue.getParentIssueId();
+        if (parentId != null) {
+            issueMetaDataRepository.findSummaryByIssueId(parentId)
+                    .ifPresent(parentSummaries::add);
+        }
+
+        List<String> childrenSummaries = issueMetaDataRepository.findChildSummariesByParentId(issue.getIssueId());
+
+        summaryMap.put("parentSummaries", parentSummaries);
+        summaryMap.put("childrenSummaries", childrenSummaries);
+
+        return summaryMap;
+    }
+
 }
