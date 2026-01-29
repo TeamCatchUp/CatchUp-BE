@@ -21,7 +21,8 @@ public class ClientChatResponseMapper {
     public ClientChatResponse map(
             UUID sessionId,
             ServerChatResponse serverResponse,
-            Map<String, CommitInfo> commitInfoMap
+            Map<String, CommitInfo> commitInfoMap,
+            Long chatHistoryId
     ) {
         List<ClientSource> clientSources = serverResponse.sources().stream()
                 .map(source -> {
@@ -33,6 +34,6 @@ public class ClientChatResponseMapper {
                 })
                 .toList();
 
-        return ClientChatResponse.createFinalResponse(sessionId, serverResponse.answer(), clientSources);
+        return ClientChatResponse.createFinalResponse(sessionId, serverResponse.answer(), clientSources, chatHistoryId);
     }
 }

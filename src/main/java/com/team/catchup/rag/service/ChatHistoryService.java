@@ -47,9 +47,9 @@ public class ChatHistoryService {
      * 어시스턴트 응답과 메타데이터를 DB에 저장한다.
      */
     @Transactional
-    public void saveAssistantResponse(Member member, ChatRoom chatRoom, ServerChatResponse response) {
+    public ChatHistory saveAssistantResponse(Member member, ChatRoom chatRoom, ServerChatResponse response) {
         ChatHistory assistantLog = ChatHistory.createAssistantInfo(chatRoom, member, response);
-        chatHistoryRepository.save(assistantLog);
+        return chatHistoryRepository.save(assistantLog);
     }
 
     /**

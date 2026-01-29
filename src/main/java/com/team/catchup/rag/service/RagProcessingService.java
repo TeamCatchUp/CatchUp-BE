@@ -14,6 +14,7 @@ import com.team.catchup.rag.dto.client.ClientChatStreamingResponse;
 import com.team.catchup.rag.dto.client.UserSelectedPullRequest;
 import com.team.catchup.rag.dto.internal.CommitInfo;
 import com.team.catchup.rag.dto.server.*;
+import com.team.catchup.rag.entity.ChatHistory;
 import com.team.catchup.rag.entity.ChatRoom;
 import com.team.catchup.rag.mapper.ClientChatResponseMapper;
 import lombok.RequiredArgsConstructor;
@@ -121,12 +122,12 @@ public class RagProcessingService {
      * 최종 응답 스트리밍 및 저장
      */
     private void handleFinalAnswer(Member member, ChatRoom chatRoom, FastApiStreamingResponse dto) {
-        
+
         // 최종 답변 및 출처 추출
         ServerChatResponse serverChatResponse = ServerChatResponse.from(dto);
-        
-        // 최종 답변 저장
-        chatHistoryService.saveAssistantResponse(member, chatRoom, serverChatResponse);
+
+        // 최종 답변 저장 후 저장된 ChatHistory 엔티티 획득
+        ChatHistory savedChatHistory = chatHistoryService.saveAssistantResponse(member, chatRoom, serverChatResponse);
 
         Map<String, CommitInfo> commitInfoHashMap = new HashMap<>();
 
@@ -149,11 +150,12 @@ public class RagProcessingService {
             }
         }
 
-        // Client 전달용 객체 생성
+        // Client 전달용 객체 생성 (chatHistoryId 포함)
         ClientChatResponse clientChatResponse = clientChatResponseMapper.map(
                 chatRoom.getSessionId(),
                 serverChatResponse,
-                commitInfoHashMap
+                commitInfoHashMap,
+                savedChatHistory.getId()
         );
 
         // Client에게 전달할 SseMessage의 data 필드 가공
@@ -168,7 +170,7 @@ public class RagProcessingService {
                 SseEventType.RAG_DONE,
                 finalWrapper
         );
-        
+
         // Client에게 전송
         notificationService.sendToClient(member.getId(), sseMessage);
     }
