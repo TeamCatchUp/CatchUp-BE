@@ -13,17 +13,19 @@ import java.util.UUID;
 public record ClientChatResponse(
         @NotNull UUID sessionId,
         @NotBlank String answer,
-        List<ClientSource> sources
+        List<ClientSource> sources,
+        Long chatHistoryId
 ) {
     public static ClientChatResponse createFinalResponse(
             UUID sessionId,
             String answer,
-            List<ClientSource> clientSources
+            List<ClientSource> clientSources,
+            Long chatHistoryId
     ) {
-        return new ClientChatResponse(sessionId, answer, clientSources);
+        return new ClientChatResponse(sessionId, answer, clientSources, chatHistoryId);
     }
 
     public static ClientChatResponse createInfoResponse(UUID sessionId, String answer) {
-        return new ClientChatResponse(sessionId, answer, List.of());
+        return new ClientChatResponse(sessionId, answer, List.of(), null);
     }
 }
