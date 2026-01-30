@@ -84,6 +84,9 @@ public class IssueMetadata {
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
+    @Column(name = "team_name")
+    private String teamName;
+
     @Builder
     public IssueMetadata(Integer issueId, String issueKey, String self,
                          IssueType issueType, JiraProject project,
@@ -91,7 +94,7 @@ public class IssueMetadata {
                          Integer parentIssueId, Integer statusId, Integer priorityId,
                          LocalDateTime duedate, LocalDateTime issueCreatedAt,
                          Integer resolutionId, LocalDateTime resolutionDate,
-                         JiraUser creator, JiraUser reporter, JiraUser assignee, String description) {
+                         JiraUser creator, JiraUser reporter, JiraUser assignee, String description, String teamName) {
         this.issueId = issueId;
         this.issueKey = issueKey;
         this.self = self;
@@ -109,5 +112,6 @@ public class IssueMetadata {
         this.reporter = reporter;
         this.assignee = assignee;
         this.description = description;
+        this.teamName = teamName;
     }
 }
