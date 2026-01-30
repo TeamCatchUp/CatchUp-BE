@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
+import java.util.UUID;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record IssueMetadataApiResponse(
@@ -71,7 +72,11 @@ public record IssueMetadataApiResponse(
             List<IssueAttachment> attachments,
 
             @JsonProperty("description")
-            Description description
+            Description description,
+
+            @JsonProperty("customfield_10001")
+            TeamProperty teamProperty
+
     ) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -232,4 +237,15 @@ public record IssueMetadataApiResponse(
             }
         }
     }
+
+    public record TeamProperty(
+            @JsonProperty("id")
+            UUID id,
+
+            @JsonProperty("name")
+            String name,
+
+            @JsonProperty("title")
+            String title
+    ){}
 }

@@ -61,6 +61,7 @@ public class IssueMetaDataMapper {
                     .creator(creator)
                     .reporter(reporter)
                     .assignee(assignee)
+                    .teamName(fields.teamProperty() != null ? fields.teamProperty().name() : null)
                     .build();
 
         } catch (Exception e) {

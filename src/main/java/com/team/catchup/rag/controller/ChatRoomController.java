@@ -28,7 +28,7 @@ public class ChatRoomController {
     @GetMapping("/api/chatrooms")
     public ResponseEntity<Slice<ChatRoomResponse>> getChatRooms(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @PageableDefault(size = 20, sort = "lastActiveTime", direction = Sort.Direction.ASC) Pageable pageable
+            @PageableDefault(size = 9999, sort = "lastActiveTime", direction = Sort.Direction.ASC) Pageable pageable
     ) {
         Slice<ChatRoomResponse> response = chatRoomService.getChatRooms(userDetails.getMemberId(), pageable);
         return ResponseEntity.ok(response);
